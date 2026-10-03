@@ -1,0 +1,66 @@
+<!-- ====================================================================== 13 -->
+<section class="slide" data-title="Instantaneous Center of Zero Velocity">
+  <p class="lead">At each instant, a body in plane motion rotates about one point C where \(v_C = 0\)</p>
+  <div class="content">
+    <div class="two" style="align-items:center">
+      <div style="flex:none;width:540px">
+        <div class="eqbox">
+          <div class="eq sm">\[v_A = \omega\, r_{A/C},\qquad v_B = \omega\, r_{B/C}\]</div>
+          <div class="eq">\[\omega = \frac{v_A}{r_{A/C}} = \frac{v_B}{r_{B/C}}\]</div>
+        </div>
+      </div>
+      <div class="tfig">
+        <img src="assets/figures/meriam_fig5_7_ic.png" style="width:650px" alt="Locating the instantaneous center C from the velocity directions of A and B">
+        <div class="src">Meriam &amp; Kraige, Fig. 5/7 — C lies on the normals to \(\mathbf v_A\) and \(\mathbf v_B\)</div>
+      </div>
+    </div>
+    <div style="margin-top:22px">
+      <p class="def"><b>Locating C</b> : draw lines perpendicular to \(\mathbf v_A\) and \(\mathbf v_B\); they intersect at C (a). Parallel velocities: use their magnitudes (b), (c).</p>
+      <p class="def"><b>Benefit</b> : the velocity of any point follows from one distance — no vector algebra.</p>
+      <p class="def" style="margin:0"><b>Caution</b> : the IC is for <span class="red">velocity only</span>. C itself generally accelerates, so \(a = \omega^2 r\) about C is wrong.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 14 -->
+<section class="slide" data-title="Rolling Without Slipping">
+  <p class="lead">The contact point has zero velocity, which ties the motion of G to \(\omega\)</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:720px">
+        <div class="eqbox"><div class="eq">\[v_G = R\,\omega,\qquad a_G = R\,\alpha\]</div></div>
+        <div class="tfig" style="align-items:flex-start">
+          <img src="assets/figures/notes_p84_rolling_cycloid.png" style="width:600px" alt="Cycloid traced by a rim point and its speed, zero at each ground contact">
+          <div class="src">Kochmann, ETH Dynamics lecture notes, p. 84 — rim point traces a cycloid; its speed is 0 at contact, \(2R\omega\) at the top</div>
+        </div>
+        <p class="def" style="margin-top:14px"><b>Common trap</b> : <span class="red">zero velocity at C does not mean zero acceleration</span>. C accelerates toward G with \(a_C = R\,\omega^2\).</p>
+        <p class="def" style="margin:0"><b>Friction</b> : static friction at C does no work, because C does not move at that instant.</p>
+      </div>
+      <div>
+        <div class="fig" style="width:450px;height:430px">
+          <svg width="450" height="430" viewBox="0 0 450 430">
+            <defs>
+              <marker id="ah7" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#111"/></marker>
+            </defs>
+            <line x1="10" y1="350" x2="440" y2="350" stroke="#404040" stroke-width="4"/>
+            <circle cx="200" cy="200" r="150" fill="#FFEBC9" stroke="#E97820" stroke-width="4"/>
+            <line x1="200" y1="200" x2="200" y2="350" stroke="#A5A5A5" stroke-width="3" stroke-dasharray="10 8"/>
+            <line x1="200" y1="200" x2="340" y2="200" stroke="#111" stroke-width="6" marker-end="url(#ah7)"/>
+            <line x1="214" y1="340" x2="214" y2="262" stroke="#111" stroke-width="6" marker-end="url(#ah7)"/>
+            <path d="M150,112 A100,100 0 0 1 262,118" fill="none" stroke="#111" stroke-width="6" marker-end="url(#ah7)"/>
+            <circle cx="200" cy="200" r="8" fill="#111"/>
+            <circle cx="200" cy="350" r="8" fill="#fff" stroke="#111" stroke-width="3"/>
+          </svg>
+          <div class="flab" style="left:170px;top:196px">G</div>
+          <div class="flab" style="left:290px;top:168px">\(\mathbf v_G\)</div>
+          <div class="flab" style="left:194px;top:58px">\(\omega\)</div>
+          <div class="flab" style="left:174px;top:236px">\(R\)</div>
+          <div class="flab" style="left:190px;top:362px">C &nbsp;\((v_C = 0)\)</div>
+          <div class="flab" style="left:226px;top:284px">\(\mathbf a_C\)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
