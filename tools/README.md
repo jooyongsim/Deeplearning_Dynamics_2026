@@ -19,6 +19,7 @@ editable PPTX are generated from it.
 | `contact_sheet.py` | Tiles PNGs into one sheet for review |
 | `py2ipynb.py` | jupytext "percent" `.py` → `.ipynb` with no dependencies (used for `../tutorial/*.py`) |
 | `test_keyboard_demo.py` | Drives `../tutorial/pusht_keyboard_sim.py` without a window (Agg): synthetic keys/mouse, wall check, snapshots in `review/` |
+| `test_imitation_recorder.py` | Drives the human-demo recorder of `../tutorial/pusht_imitation.py` without a window: 10 Hz recording, idle trimming, auto-save on goal, seed replay, N/Backspace; snapshot in `review/` |
 | `snippets/` | Slide markup and one-off layout/QA passes applied during the build |
 
 After editing the HTML deck:
