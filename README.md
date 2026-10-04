@@ -43,6 +43,13 @@ EMA 사용
 Action chunk = 8
 Replanning after 4 actions
 
+GPT: Can I see the demo and how the demo was generated  for "expert 시연으로 직접 쟀습니다."?
+
+즉 438개 random task를 시도해서 성공한 400개만 저장했습니다. 이 controller의 이 시점 성공률은 약 \[ \frac{400}{438}\approx91.3\% \]
+
+```
+
+
 실제 로그의 MLP 결과:
 | N | 25 | 50 | 100 | 180 | 360 |
 |---:|---:|---:|---:|---:|---:|
@@ -54,9 +61,4 @@ Diffusion 결과:
 |---:|---:|---:|---:|---:|---:|
 | Diffusion | 20% | 48% | 61% | 63% | 68% |
 
-
-GPT: Can I see the demo and how the demo was generated  for "expert 시연으로 직접 쟀습니다."?
-
-즉 438개 random task를 시도해서 성공한 400개만 저장했습니다. 이 controller의 이 시점 성공률은 약 \[ \frac{400}{438}\approx91.3\% \]
-
-```
+scripted expert로 random Push-T 성공 trajectory 400개를 실제 simulator에서 생성하고 → 그중 training data를 25/50/100/180/360개로 바꾸어 → MLP-BC와 Diffusion을 각각 30k steps 학습하고 → 각 모델을 새로운 100개 task에서 실제 closed-loop로 rollout해서 성공률을 측정했다.
