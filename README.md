@@ -1,6 +1,38 @@
 여기서는
-$ s_t \rightarrow (a_t,a_{t+1},\ldots,a_{t+7}) $
+$$ s_t \rightarrow (a_t,a_{t+1},\ldots,a_{t+7}) $$
 처럼 8개의 미래 행동을 한꺼번에 예측하도록 만들었습니다.
+
+따라서 중간에 dynamics가 예상과 조금 달라져도 4 control step 동안 open-loop로 갑니다. 이것도 expert와의 performance gap을 만드는 요소입니다.
+MLP-BC에는 추가로 multimodality 문제가 있습니다. 같은 비슷한 상태에서 expert가 어떤 때는 왼쪽으로 돌아가고 어떤 때는 오른쪽으로 돌아가는 식이라면 MSE BC는
+$$
+\hat a
+=
+E[a\mid s]
+$$
+에 가까운 평균을 내려고 합니다.
+그 평균 행동이 실제로는 좋은 행동이 아닐 수 있습니다. Diffusion이 59%가 아니라 68%까지 올라간 이유도 이런 multimodal action distribution을 MLP보다 잘 표현하기 때문이라고 볼 수 있습니다. 그래도 finite demonstration + distribution shift 문제 자체가 없어지는 것은 아닙니다.
+그리고 숫자를 하나 정확히 구분할 필요가 있습니다. 59% / 68%는 360개의 training demonstration을 사용한 scaling experiment 결과입니다.
+$$
+\begin{array}{c|cc}
+& \text{MLP-BC} & \text{Diffusion}\\
+\hline
+25 &9\%&20\%\\
+50 &26\%&48\%\\
+100&32\%&61\%\\
+180&48\%&63\%\\
+360&59\%&68\%
+\end{array}
+$$
+
+반면 최종 default end-to-end run에서는 200 episode를 생성해서 180개 train / 20개 validation으로 썼고, 그 실행에서는
+
+$$
+\text{Expert}=88\%,\quad
+\text{MLP}=38\%,\quad
+\text{Diffusion}=54\%
+$$
+
+였습니다. 실행 seed 등에 따라 편차도 꽤 컸습니다.
 
 
 새로운 python tutorial 코드를 만들 여기서는 사람이 했던 것을 imitation learning하는 모델을 만드는 과정이 포함된 단계적인 코드 만들어줘.
