@@ -43,6 +43,17 @@ EMA 사용
 Action chunk = 8
 Replanning after 4 actions
 
+실제 로그의 MLP 결과:
+| N | 25 | 50 | 100 | 180 | 360 |
+|---:|---:|---:|---:|---:|---:|
+| MLP-BC | 9% | 26% | 32% | 48% | 59% |
+
+
+Diffusion 결과:
+| N | 25 | 50 | 100 | 180 | 360 |
+|---:|---:|---:|---:|---:|---:|
+| Diffusion | 20% | 48% | 61% | 63% | 68% |
+
 
 GPT: Can I see the demo and how the demo was generated  for "expert 시연으로 직접 쟀습니다."?
 
