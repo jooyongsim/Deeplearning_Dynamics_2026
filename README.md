@@ -27,3 +27,25 @@ python pusht_rl_realtime.py script
 
 
 ```
+
+```
+최종적으로 얻은 성능
+기본 설정을 여러 번 실행했을 때 로그에 기록된 대략적인 범위는:
+- Scripted expert: 약 88%
+- MLP-BC: 38~59%
+- Diffusion Policy: 54~63%
+
+또 모델 폭을 512로 키우고 EMA를 적용하며 learning rate 등을 조정하는 실험도 진행했습니다.
+Network width = 512
+Learning rate = 3e-3
+Training steps = 30,000
+EMA 사용
+Action chunk = 8
+Replanning after 4 actions
+
+
+GPT: Can I see the demo and how the demo was generated  for "expert 시연으로 직접 쟀습니다."?
+
+즉 438개 random task를 시도해서 성공한 400개만 저장했습니다. 이 controller의 이 시점 성공률은 약 \[ \frac{400}{438}\approx91.3\% \]
+
+```
