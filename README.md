@@ -1,9 +1,5 @@
 여기서는
-$
-s_t
-\rightarrow
-(a_t,a_{t+1},\ldots,a_{t+7})
-$
+$ s_t \rightarrow (a_t,a_{t+1},\ldots,a_{t+7}) $
 처럼 8개의 미래 행동을 한꺼번에 예측하도록 만들었습니다.
 
 
