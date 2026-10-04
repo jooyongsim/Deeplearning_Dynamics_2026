@@ -1,0 +1,2 @@
+x          success  42.0 %   median final error 0.19 m, 10 deg   (49 s)
+RESULT diff steps=80000 ema=0.0 lr=0.001 K=50: success 42%  med err 0.21 m 10 deg  val 0.1131  train 949s

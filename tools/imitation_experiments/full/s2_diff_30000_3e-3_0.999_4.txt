@@ -1,0 +1,2 @@
+x          success  38.0 %   median final error 0.32 m, 19 deg   (51 s)
+RESULT diff steps=30000 lr=0.003 ema=0.999 exec=4: success 38%  med err 0.32 m 19 deg  val 0.1165  (418s)

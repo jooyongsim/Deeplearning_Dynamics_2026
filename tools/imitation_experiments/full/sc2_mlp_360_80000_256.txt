@@ -1,0 +1,2 @@
+x          success  55.0 %   median final error 0.14 m, 10 deg   (47 s)
+RESULT mlp N=360 steps=80000 width=256: success 55%  med err 0.14 m 10 deg  val 0.1122  (471s)

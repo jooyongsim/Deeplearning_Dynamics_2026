@@ -1,0 +1,65 @@
+circle_vs_T_fast == circle_vs_T on 2000 random cases -> patched
+figure -> figures_imitation/01_random_tasks.png
+figure -> figures_imitation/02_expert_rollouts.png
+  tried   50, kept   45   (27 s)
+  tried  100, kept   88   (53 s)
+  tried  150, kept  136   (77 s)
+  tried  200, kept  181   (102 s)
+kept 200 / 222 episodes -> demos/expert_demos.npz
+episode length: mean 159 steps (15.9 s), min 44, max 309,  total 31835 (s, a) pairs
+human demos available: 0
+training data: expert, 200 episodes, 31835 steps
+train: 180 episodes -> X (28626, 12), Y (28626, 16)
+val  : 20 episodes -> X (3209, 12)
+model target for this sample (offsets from the pusher, goal frame):
+[[-0.103 -0.157]
+ [-0.105 -0.244]
+ [-0.119 -0.338]
+ [-0.145 -0.437]
+ [-0.156 -0.582]
+ [-0.178 -0.761]
+ [-0.195 -0.96 ]
+ [-0.258 -1.15 ]]
+figure -> figures_imitation/03_sample_goal_frame.png
+torch 2.14.1+cpu device: cpu
+  [MLP-BC   ] step   1500  train 0.9991  val nan  (7 s)
+  [Diffusion] step   3000  train 0.2982  val nan  (14 s)
+figure -> figures_imitation/04_multimodality_toy.png
+  [MLP-BC   ] step   2000  train 0.2935  val 0.2272  (10 s)
+  [MLP-BC   ] step   4000  train 0.1441  val 0.1927  (21 s)
+  [MLP-BC   ] step   6000  train 0.0970  val 0.1824  (31 s)
+  [MLP-BC   ] step   8000  train 0.0760  val 0.1703  (41 s)
+  [MLP-BC   ] step  10000  train 0.0639  val 0.1629  (51 s)
+  [MLP-BC   ] step  12000  train 0.0560  val 0.1622  (61 s)
+  [MLP-BC   ] step  14000  train 0.0504  val 0.1654  (71 s)
+  [MLP-BC   ] step  16000  train 0.0463  val 0.1683  (81 s)
+  [MLP-BC   ] step  18000  train 0.0431  val 0.1707  (92 s)
+  [MLP-BC   ] step  20000  train 0.0406  val 0.1728  (102 s)
+  [MLP-BC   ] step  22000  train 0.0386  val 0.1753  (112 s)
+  [MLP-BC   ] step  24000  train 0.0372  val 0.1769  (122 s)
+  [MLP-BC   ] step  26000  train 0.0361  val 0.1791  (132 s)
+  [MLP-BC   ] step  28000  train 0.0355  val 0.1785  (142 s)
+  [MLP-BC   ] step  30000  train 0.0352  val 0.1775  (152 s)
+  [Diffusion] step   2000  train 0.2319  val 0.2090  (11 s)
+  [Diffusion] step   4000  train 0.2035  val 0.1939  (21 s)
+  [Diffusion] step   6000  train 0.1926  val 0.1851  (32 s)
+  [Diffusion] step   8000  train 0.1839  val 0.1778  (42 s)
+  [Diffusion] step  10000  train 0.1753  val 0.1707  (53 s)
+  [Diffusion] step  12000  train 0.1670  val 0.1645  (64 s)
+  [Diffusion] step  14000  train 0.1598  val 0.1592  (74 s)
+  [Diffusion] step  16000  train 0.1538  val 0.1552  (85 s)
+  [Diffusion] step  18000  train 0.1489  val 0.1518  (95 s)
+  [Diffusion] step  20000  train 0.1448  val 0.1494  (106 s)
+  [Diffusion] step  22000  train 0.1414  val 0.1472  (116 s)
+  [Diffusion] step  24000  train 0.1389  val 0.1460  (127 s)
+  [Diffusion] step  26000  train 0.1371  val 0.1454  (137 s)
+  [Diffusion] step  28000  train 0.1360  val 0.1450  (148 s)
+  [Diffusion] step  30000  train 0.1354  val 0.1448  (158 s)
+figure -> figures_imitation/05_loss_curves.png
+expert     success  88.0 %   median final error 0.13 m, 9 deg   (25 s)
+MLP-BC     success  32.0 %   median final error 0.41 m, 43 deg   (30 s)
+Diffusion  success   8.0 %   median final error 0.97 m, 76 deg   (62 s)
+figure -> figures_imitation/06_success_rates.png
+figure -> figures_imitation/07_rollouts_bc.png
+figure -> figures_imitation/08_rollouts_diffusion.png
+best model: MLP-BC

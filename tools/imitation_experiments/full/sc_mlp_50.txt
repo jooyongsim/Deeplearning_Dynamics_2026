@@ -1,0 +1,2 @@
+x          success  20.0 %   median final error 1.33 m, 80 deg   (55 s)
+RESULT mlp N=50: success 20%  med err 1.34 m 81 deg  val 0.5824  (780s)

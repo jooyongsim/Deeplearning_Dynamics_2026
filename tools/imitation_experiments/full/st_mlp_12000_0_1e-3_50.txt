@@ -1,0 +1,2 @@
+x          success  10.0 %   median final error 0.95 m, 102 deg   (33 s)
+RESULT mlp steps=12000 ema=0.0 lr=0.001 K=50: success 10%  med err 0.98 m 102 deg  val 0.1461  train 246s

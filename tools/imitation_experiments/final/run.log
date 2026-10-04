@@ -1,0 +1,65 @@
+circle_vs_T_fast == circle_vs_T on 2000 random cases -> patched
+figure -> figures_imitation/01_random_tasks.png
+figure -> figures_imitation/02_expert_rollouts.png
+  tried   50, kept   45   (27 s)
+  tried  100, kept   88   (53 s)
+  tried  150, kept  136   (78 s)
+  tried  200, kept  181   (102 s)
+kept 200 / 222 episodes -> demos/expert_demos.npz
+episode length: mean 159 steps (15.9 s), min 44, max 309,  total 31835 (s, a) pairs
+human demos available: 0
+training data: expert, 200 episodes, 31835 steps
+train: 180 episodes -> X (28626, 12), Y (28626, 16)
+val  : 20 episodes -> X (3209, 12)
+model target for this sample (offsets from the pusher, goal frame):
+[[-0.103 -0.157]
+ [-0.105 -0.244]
+ [-0.119 -0.338]
+ [-0.145 -0.437]
+ [-0.156 -0.582]
+ [-0.178 -0.761]
+ [-0.195 -0.96 ]
+ [-0.258 -1.15 ]]
+figure -> figures_imitation/03_sample_goal_frame.png
+torch 2.14.1+cpu device: cpu
+  [MLP-BC   ] step   1500  train 1.0003  val(EMA) nan  (7 s)
+  [Diffusion] step   3000  train 0.2893  val(EMA) nan  (15 s)
+figure -> figures_imitation/04_multimodality_toy.png
+  [MLP-BC   ] step   2000  train 0.1579  val(EMA) 0.2200  (16 s)
+  [MLP-BC   ] step   4000  train 0.0607  val(EMA) 0.1090  (31 s)
+  [MLP-BC   ] step   6000  train 0.0477  val(EMA) 0.1029  (47 s)
+  [MLP-BC   ] step   8000  train 0.0398  val(EMA) 0.1024  (62 s)
+  [MLP-BC   ] step  10000  train 0.0339  val(EMA) 0.1032  (78 s)
+  [MLP-BC   ] step  12000  train 0.0291  val(EMA) 0.1058  (93 s)
+  [MLP-BC   ] step  14000  train 0.0249  val(EMA) 0.1096  (109 s)
+  [MLP-BC   ] step  16000  train 0.0215  val(EMA) 0.1143  (124 s)
+  [MLP-BC   ] step  18000  train 0.0186  val(EMA) 0.1193  (140 s)
+  [MLP-BC   ] step  20000  train 0.0163  val(EMA) 0.1244  (155 s)
+  [MLP-BC   ] step  22000  train 0.0144  val(EMA) 0.1295  (171 s)
+  [MLP-BC   ] step  24000  train 0.0129  val(EMA) 0.1344  (186 s)
+  [MLP-BC   ] step  26000  train 0.0119  val(EMA) 0.1384  (202 s)
+  [MLP-BC   ] step  28000  train 0.0113  val(EMA) 0.1409  (217 s)
+  [MLP-BC   ] step  30000  train 0.0110  val(EMA) 0.1419  (233 s)
+  [Diffusion] step   2000  train 0.2229  val(EMA) 0.2245  (16 s)
+  [Diffusion] step   4000  train 0.1871  val(EMA) 0.1729  (32 s)
+  [Diffusion] step   6000  train 0.1651  val(EMA) 0.1489  (48 s)
+  [Diffusion] step   8000  train 0.1499  val(EMA) 0.1349  (64 s)
+  [Diffusion] step  10000  train 0.1373  val(EMA) 0.1253  (80 s)
+  [Diffusion] step  12000  train 0.1262  val(EMA) 0.1186  (96 s)
+  [Diffusion] step  14000  train 0.1160  val(EMA) 0.1133  (112 s)
+  [Diffusion] step  16000  train 0.1065  val(EMA) 0.1096  (129 s)
+  [Diffusion] step  18000  train 0.0978  val(EMA) 0.1073  (145 s)
+  [Diffusion] step  20000  train 0.0898  val(EMA) 0.1063  (161 s)
+  [Diffusion] step  22000  train 0.0829  val(EMA) 0.1060  (177 s)
+  [Diffusion] step  24000  train 0.0771  val(EMA) 0.1064  (193 s)
+  [Diffusion] step  26000  train 0.0726  val(EMA) 0.1070  (209 s)
+  [Diffusion] step  28000  train 0.0696  val(EMA) 0.1074  (225 s)
+  [Diffusion] step  30000  train 0.0679  val(EMA) 0.1077  (241 s)
+figure -> figures_imitation/05_loss_curves.png
+expert     success  88.0 %   median final error 0.13 m, 9 deg   (25 s)
+MLP-BC     success  38.0 %   median final error 0.29 m, 17 deg   (29 s)
+Diffusion  success  54.0 %   median final error 0.15 m, 10 deg   (58 s)
+figure -> figures_imitation/06_success_rates.png
+figure -> figures_imitation/07_rollouts_bc.png
+figure -> figures_imitation/08_rollouts_diffusion.png
+best model: Diffusion

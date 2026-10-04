@@ -1,0 +1,9 @@
+samples 30642 goal_abs
+mlp 0 0.13337234288704494 1s
+mlp 50 0.012776791376351309 48s
+mlp 99 0.009212250050407749 94s
+mlp N 200 success / median err (0.08, array([ 1.53, 98.13])) eval 32s
+diff 0 0.3447995625373696 1s
+diff 50 0.08556260005766604 49s
+diff 99 0.07906231631626602 97s
+diff N 200 success / median err (0.0, array([  2.22, 106.92])) eval 62s

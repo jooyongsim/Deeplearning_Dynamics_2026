@@ -1,0 +1,2 @@
+x          success  64.0 %   median final error 0.14 m, 9 deg   (90 s)
+RESULT diff N=180 steps=80000 width=256: success 64%  med err 0.14 m 9 deg  val 0.1155  (532s)

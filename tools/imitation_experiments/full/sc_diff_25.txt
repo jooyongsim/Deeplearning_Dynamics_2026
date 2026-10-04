@@ -1,0 +1,2 @@
+x          success  26.0 %   median final error 1.12 m, 65 deg   (109 s)
+RESULT diff N=25: success 26%  med err 1.15 m 66 deg  val 0.4153  (855s)
