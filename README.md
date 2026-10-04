@@ -13,7 +13,17 @@ script기반 자동 task 수행하는 것과 강화학습 학습 일부, 완전�
 // where is proto_rl.py?
 // How about now? Is it still in the temp ?
 // Yes, I wanted to start from imitation learning policy. Do this. How is the success rate for the script policy?
+ >> The script policy (ScriptedExpert) succeeds 88% of the time on the 50 evaluation tasks, and 91% (400 of 438) when collecting the 400 demos.
+
 // save this RL training from scratch. Show this one of the panels in the realtime demo.
 // But, the training is not meaningful. So, After saving the weight, go on for RL starting from BC.
+ >> From-scratch RL training is stopped and saved, with checkpoints and logs in both project locations. Now I'll write the PPO fine-tuning code that starts from the BC policy weights (42% success at exec=1, 52% with 4-step chunks).
+
 // so proto_rl is the final file for the example of RL from scratch?
+
+// How to do realtime demo only for the scripted policy?
+
+python pusht_rl_realtime.py script
+
+
 ```
