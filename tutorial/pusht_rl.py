@@ -31,7 +31,10 @@
 # | 실험 | 시작점 | 결과 (같은 랜덤 과제, 성공 기준 0.15 m / 10°) |
 # |---|---|---|
 # | **A. RL from scratch** | 무작위 신경망 | 1,640만 step (2.5시간) 학습 후에도 **성공 0%** — T를 goal 쪽으로 조금 옮기는 것까지만 배움 |
-# | **B. BC → RL fine-tuning** | `pusht_imitation.py` 의 MLP-BC policy (성공 약 42%) | 아래 14절의 학습 로그 참고 |
+# | **B. BC → RL fine-tuning** | `pusht_imitation.py` 의 MLP-BC policy | 시작 **42%** → 300만 step **74%** → 600만 step (80분) **80%** |
+# | (비교) script expert | 손으로 짠 규칙 | 88% |
+#
+# (평가: 처음 보는 과제 seed 0–49, 탐험 noise 없이. `python pusht_rl.py eval` 로 다시 잴 수 있습니다.)
 #
 # A가 실패하는 이유가 이 강의의 중요한 교훈입니다: PushT의 성공은 "접촉 위치를 고르고 → 돌아가서 → 미는" 긴 행동 순서 끝에만 옵니다.
 # 무작위로 움직여서는 그 순서를 우연히 해낼 확률이 거의 0이라 (**exploration 문제**), 성공 보상을 한 번도 보지 못합니다.
@@ -494,7 +497,7 @@ def checkpoints(folder, prefix):
 # ## 8. 실행
 #
 # - `scratch` : A, 2천만 step 예산 (16코어 CPU에서 약 3시간 — 우리는 1,640만 step에서 멈췄습니다)
-# - `bc` : B, 6백만 step (약 75분). `checkpoints/` 의 MLP-BC (`pusht_imitation.py` 의 결과) 가 필요합니다.
+# - `bc` : B, 6백만 step (약 80분). `checkpoints/` 의 MLP-BC (`pusht_imitation.py` 의 결과) 가 필요합니다. 학습 중 성공률은 0.42 → 0.88 로 올랐습니다 (`checkpoints/rl/bc_ppo/train_log.txt`).
 # - `eval` : 저장된 policy들을 평가 seed 0–49 에서 비교
 
 # %%
