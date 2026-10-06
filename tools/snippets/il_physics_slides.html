@@ -1,0 +1,483 @@
+<!-- Extra slides for ADL_2026_ImitationRL_Physics.html.
+     Each group is inserted after the slide whose data-title follows "@after:". -->
+
+<!-- @after: Control Loop and Demonstration Data -->
+<section class="slide" data-title="Physics Inside One Control Step">
+  <p class="lead">One env.step() = 0.1 s = 20 substeps of 5 ms, each with a 3-pass contact solver</p>
+  <div class="content">
+    <div class="row" style="margin-top:4px">
+      <div class="blk t-purple" style="width:196px;height:104px"><span class="nm">Target</span><span class="en">\(a_t=(x^{*},y^{*})\)</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:196px;height:104px"><span class="nm">PD pusher</span><span class="en">\(\mathbf x_P,\ \mathbf v_P\)</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-blue" style="width:196px;height:104px"><span class="nm">Contact</span><span class="en">point, \(\mathbf n\), depth</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:196px;height:104px"><span class="nm">Impulse</span><span class="en">\(j_n,\ j_t\)</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-green" style="width:196px;height:104px"><span class="nm">T motion</span><span class="en">\((\mathbf v_G,\omega)\to(\mathbf x_G,\theta)\)</span></div>
+    </div>
+    <div class="two" style="margin-top:22px">
+      <div style="flex:none;width:470px">
+        <p class="sub-h">Time steps</p>
+        <div class="eq sm">\[n_{\text{sub}}=\mathrm{round}\Big(\frac{\Delta t_{\text{ctrl}}}{\Delta t_{\text{phys}}}\Big)=\frac{0.1}{0.005}=20\]</div>
+        <p class="sub-h" style="margin-top:6px">Average contact force</p>
+        <div class="eqbox"><div class="eq sm">\[\mathbf F\approx\frac{1}{\Delta t_{\text{ctrl}}}\sum_{\text{substeps}}\mathbf J,\qquad \mathbf J=\int\mathbf F\,dt\]</div></div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_imitation.py : PushTEnv.step · pusht_keyboard_sim.py : advance</p>
+        <p class="code">def step(self, action):</p>
+        <p class="code">    self.sim.target = np.clip(action, [x_min, y_min], [x_max, y_max])</p>
+        <p class="code">    self.sim.advance(self.control_dt)        <span class="cm"># 0.1 s</span></p>
+        <p class="code">    self.t += 1</p>
+        <p class="code"> </p>
+        <p class="code">def advance(self, frame_dt):</p>
+        <p class="code">    n = max(1, int(round(frame_dt / self.physics_dt)))</p>
+        <p class="code">    self._j_sum[:] = 0.0</p>
+        <p class="code">    for _ in range(n):</p>
+        <p class="code">        self.substep(self.physics_dt)        <span class="cm"># 5 ms</span></p>
+        <p class="code">    F = self._j_sum / (n * self.physics_dt)  <span class="cm"># impulse / time</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Substep: PD Pusher, Damping, Integration">
+  <p class="lead">The pusher is a controlled kinematic body; the T coasts and slows down by floor friction</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:500px">
+        <p class="sub-h">1. PD control of the pusher</p>
+        <div class="eqbox"><div class="eq sm">\[\mathbf a_P=K_p(\mathbf x^{*}-\mathbf x_P)-K_d\,\mathbf v_P\]</div></div>
+        <p class="def">\(K_p=80,\ K_d=18\) : damping ratio \(\zeta=K_d/(2\sqrt{K_p})\approx1\) — fast, no overshoot. Speed limited to \(3\) m/s.</p>
+        <p class="sub-h">2. Floor friction as exponential decay</p>
+        <div class="eq sm">\[\mathbf v_G\leftarrow\mathbf v_G\,e^{-c_v\Delta t},\qquad \omega\leftarrow\omega\,e^{-c_\omega\Delta t}\]</div>
+        <p class="sub-h">3. Semi-implicit Euler</p>
+        <div class="eq sm">\[\mathbf x_G\leftarrow\mathbf x_G+\mathbf v_G\Delta t,\qquad \theta\leftarrow\theta+\omega\Delta t\]</div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_keyboard_sim.py : KeyboardPushT.substep</p>
+        <p class="code"><span class="cm"># 1. pusher PD control toward the target</span></p>
+        <p class="code">acc = self.kp * (self.target - P.pos) - self.kd * P.vel</p>
+        <p class="code">P.vel += acc * dt</p>
+        <p class="code">speed = np.linalg.norm(P.vel)</p>
+        <p class="code">if speed &gt; self.max_speed:</p>
+        <p class="code">    P.vel *= self.max_speed / speed</p>
+        <p class="code">P.pos += P.vel * dt               <span class="cm"># new velocity first</span></p>
+        <p class="code"> </p>
+        <p class="code"><span class="cm"># 2. damping  3. integrate the T</span></p>
+        <p class="code">T.vel *= math.exp(-self.linear_damping * dt)</p>
+        <p class="code">T.omega *= math.exp(-self.angular_damping * dt)</p>
+        <p class="code">T.pos += T.vel * dt</p>
+        <p class="code">T.angle += T.omega * dt</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Consequence</b> : released at speed \(v\), the T slides another \(\int_0^\infty v e^{-c_v t}dt=v/c_v\) — <span class="red">the expert slows down near the goal</span> for this reason.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="T Geometry: Mass Moment of Inertia">
+  <p class="lead">Composite body: two rectangles, each shifted to the T's centre of mass</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:510px">
+        <p class="sub-h">Centre of mass (mass ∝ area)</p>
+        <div class="eq sm">\[\bar y=\frac{A_1y_1+A_2y_2}{A_1+A_2}\]</div>
+        <p class="sub-h">Rectangle + parallel-axis theorem</p>
+        <div class="eqbox"><div class="eq sm">\[I_G=\sum_i\Big[\tfrac{m_i}{12}(a_i^2+b_i^2)+m_i\,d_i^2\Big]\]</div></div>
+        <table class="t sm">
+          <tr><th style="width:250px">Value (\(m=1\))</th><th>Result</th></tr>
+          <tr><td>top bar</td><td>\(1.8\times0.5\)</td></tr>
+          <tr><td>stem</td><td>\(0.5\times1.3\)</td></tr>
+          <tr><td>COM below the top edge</td><td>0.627</td></tr>
+          <tr><td>\(I_G\)</td><td><b>0.434</b></td></tr>
+        </table>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_keyboard_sim.py : make_T_geometry</p>
+        <p class="code">top_area = W * top_t</p>
+        <p class="code">stem_h = H - top_t</p>
+        <p class="code">stem_area = stem_w * stem_h</p>
+        <p class="code">total_area = top_area + stem_area</p>
+        <p class="code"> </p>
+        <p class="code">y_top, y_stem = H / 2 - top_t / 2, -top_t / 2</p>
+        <p class="code">y_com = (top_area * y_top + stem_area * y_stem) / total_area</p>
+        <p class="code"> </p>
+        <p class="code">m_top = mass * top_area / total_area</p>
+        <p class="code">m_stem = mass * stem_area / total_area</p>
+        <p class="code"><span class="cm"># own centre + parallel-axis shift to the COM</span></p>
+        <p class="code">I_top = m_top * (W**2 + top_t**2) / 12 \</p>
+        <p class="code">        + m_top * (y_top - y_com) ** 2</p>
+        <p class="code">I_stem = m_stem * (stem_w**2 + stem_h**2) / 12 \</p>
+        <p class="code">        + m_stem * (y_stem - y_com) ** 2</p>
+        <p class="code">vertices[:, 1] -= y_com   <span class="cm"># body origin = COM</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Contact Detection: Circle vs T">
+  <p class="lead">Work in the T's own frame: closest point on the 8 edges, then inside / outside</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:520px">
+        <p class="sub-h">World → body frame</p>
+        <div class="eq sm">\[\mathbf c=R(\theta)^{\!\top}(\mathbf x_P-\mathbf x_G)\]</div>
+        <p class="sub-h">Closest point on edge \(i\)</p>
+        <div class="eq sm">\[t_i=\mathrm{clip}\Big(\frac{(\mathbf c-\mathbf a_i)\cdot(\mathbf b_i-\mathbf a_i)}{\lVert\mathbf b_i-\mathbf a_i\rVert^2},0,1\Big)\]</div>
+        <div class="eq sm">\[\mathbf q_i=\mathbf a_i+t_i(\mathbf b_i-\mathbf a_i),\quad i^{*}=\arg\min_i\lVert\mathbf q_i-\mathbf c\rVert\]</div>
+        <p class="sub-h">Penetration (pusher radius \(\rho\))</p>
+        <div class="eqbox"><div class="eq sm">\[\delta=\begin{cases}\rho-d & \text{outside}\\ \rho+d & \text{inside}\end{cases},\qquad \mathbf n=R\,\mathbf n_{\text{local}}\]</div></div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_imitation.py : circle_vs_T_fast (all edges at once)</p>
+        <p class="code">R = rotation_matrix(body_angle)</p>
+        <p class="code">c = R.T @ (circle_pos - body_pos)     <span class="cm"># world -&gt; T</span></p>
+        <p class="code">A = vertices</p>
+        <p class="code">AB = np.roll(vertices, -1, axis=0) - A</p>
+        <p class="code">t = np.clip(((c - A) * AB).sum(1) / (AB * AB).sum(1), 0, 1)</p>
+        <p class="code">Q = A + t[:, None] * AB               <span class="cm"># closest points</span></p>
+        <p class="code">d2 = ((Q - c) ** 2).sum(1)</p>
+        <p class="code">i = int(np.argmin(d2))</p>
+        <p class="code">d = math.sqrt(d2[i])</p>
+        <p class="code">inside = ...                           <span class="cm"># ray casting</span></p>
+        <p class="code">if not inside and d &gt;= radius:</p>
+        <p class="code">    return None</p>
+        <p class="code">direction = (Q[i] - c) / d</p>
+        <p class="code">n_local, pen = (-direction, radius + d) if inside \</p>
+        <p class="code">          else (direction, radius - d)</p>
+        <p class="code">n = R @ n_local</p>
+        <p class="code">return body_pos + R @ Q[i], n, pen</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Speed</b> : the numpy version replaces an 8-iteration Python loop — identical results on 2000 random cases, checked in the tutorial.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Contact Velocity and Normal Impulse">
+  <p class="lead">Relative velocity says whether the bodies approach; an impulse stops them</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:520px">
+        <p class="sub-h">Velocity of the contact point</p>
+        <div class="eq sm">\[\mathbf v_C=\mathbf v_G+\boldsymbol\omega\times\mathbf r,\qquad \boldsymbol\omega\times\mathbf r=(-\omega r_y,\ \omega r_x)\]</div>
+        <div class="eq sm">\[v_n=(\mathbf v_C-\mathbf v_P)\cdot\mathbf n\ &lt;0\ \ \Rightarrow\ \text{approaching}\]</div>
+        <p class="sub-h">Normal impulse</p>
+        <div class="eqbox">
+          <div class="eq sm">\[K_n=\frac1m+\frac{(\mathbf r\times\mathbf n)^2}{I},\quad j_n=-\frac{(1+e)\,v_n}{K_n}\]</div>
+          <div class="eq sm">\[\Delta\mathbf v_G=\frac{j_n\mathbf n}{m},\qquad \Delta\omega=\frac{\mathbf r\times j_n\mathbf n}{I}\]</div>
+        </div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_keyboard_sim.py : resolve_impulse (part 1)</p>
+        <p class="code">point, n, pen = contact</p>
+        <p class="code">r = point - body.pos</p>
+        <p class="code">v_rel = body.vel + omega_cross_r(body.omega, r) - other_vel</p>
+        <p class="code">v_n = float(np.dot(v_rel, n))</p>
+        <p class="code"> </p>
+        <p class="code">if v_n &lt; 0:                                  <span class="cm"># approaching</span></p>
+        <p class="code">    K_n = 1.0 / body.mass + cross2(r, n) ** 2 / body.inertia</p>
+        <p class="code">    j_n = -(1.0 + restitution) * v_n / K_n</p>
+        <p class="code">    J = j_n * n</p>
+        <p class="code">    body.vel += J / body.mass</p>
+        <p class="code">    body.omega += cross2(r, J) / body.inertia</p>
+        <p class="code"> </p>
+        <p class="code">def cross2(a, b):        <span class="cm"># 2D cross product, z only</span></p>
+        <p class="code">    return a[0] * b[1] - a[1] * b[0]</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Kinematic pusher</b> : \(1/m_P=0,\ 1/I_P=0\), so only the T's terms remain in \(K_n\). PushT uses \(e=0\) — after impact \(v_n^{+}=0\).</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Why Contact Height Matters">
+  <p class="lead">The same push at a different height splits into translation and rotation differently</p>
+  <div class="content">
+    <p class="sub-h">Derivation: normal velocity change at C</p>
+    <div class="eq sm">\[\Delta v_n=\Big(\frac{j\mathbf n}{m}+\Delta\boldsymbol\omega\times\mathbf r\Big)\cdot\mathbf n=j\Big(\frac1m+\frac{(\mathbf r\times\mathbf n)^2}{I}\Big)=jK_n\]</div>
+    <div class="two">
+      <div style="flex:none;width:520px">
+        <div class="eqbox"><div class="eq sm">\[v_n^{+}=v_n+jK_n=-e\,v_n\ \Rightarrow\ j=-\frac{(1+e)v_n}{K_n}\]</div></div>
+        <p class="def">Stem's left face (\(x=-0.25\)), \(\mathbf v_P=(1,0)\), \(e=0,\ \mu=0\) : \(\ \mathbf r\times\mathbf n=-y,\ \ K_n=1+y^2/I\)</p>
+      </div>
+      <div>
+        <table class="t sm">
+          <tr><th style="width:120px">Height \(y\)</th><th style="width:100px">\(K_n\)</th><th style="width:100px">\(j_n\)</th><th style="width:100px">\(\Delta v_x\)</th><th>\(\Delta\omega\)</th></tr>
+          <tr><td>0 (COM)</td><td>1.000</td><td>1.000</td><td>1.000</td><td>0.000</td></tr>
+          <tr><td>−0.5</td><td>1.576</td><td>0.634</td><td>0.634</td><td>0.731</td></tr>
+          <tr><td>−1.0</td><td>3.305</td><td>0.303</td><td>0.303</td><td>0.697</td></tr>
+        </table>
+        <p class="cap">Output of resolve_impulse() — pusht_mini_sim.py, section 8</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def"><b>At the COM</b> : pure translation. <b>Far from the COM</b> : smaller impulse, mostly rotation.</p>
+      <p class="def" style="margin:0"><b>This is PushT</b> : <span class="red">choosing the contact point chooses the motion</span> — exactly what the scripted expert and the learned policies must do.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Coulomb Friction Impulse">
+  <p class="lead">Cancel the sliding velocity at the contact, but never beyond \(\mu\,j_n\)</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:500px">
+        <p class="sub-h">Tangent direction</p>
+        <div class="eq sm">\[\mathbf n=(n_x,n_y)\ \Rightarrow\ \mathbf t=(-n_y,\ n_x)\]</div>
+        <p class="sub-h">Impulse that stops sliding</p>
+        <div class="eq sm">\[v_t=\mathbf v_{\text{rel}}\cdot\mathbf t,\qquad K_t=\frac1m+\frac{(\mathbf r\times\mathbf t)^2}{I}\]</div>
+        <div class="eq sm">\[j_t^{*}=-\frac{v_t}{K_t}\]</div>
+        <p class="sub-h">Coulomb limit</p>
+        <div class="eqbox"><div class="eq sm">\[j_t=\mathrm{clip}\big(j_t^{*},\,-\mu j_n,\,\mu j_n\big),\qquad \mu=0.4\]</div></div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_keyboard_sim.py : resolve_impulse (part 2)</p>
+        <p class="code"><span class="cm"># friction, using the velocity after the normal impulse</span></p>
+        <p class="code">t = np.array([-n[1], n[0]])</p>
+        <p class="code">v_rel = body.vel + omega_cross_r(body.omega, r) - other_vel</p>
+        <p class="code">v_t = float(np.dot(v_rel, t))</p>
+        <p class="code">K_t = 1.0 / body.mass + cross2(r, t) ** 2 / body.inertia</p>
+        <p class="code">j_t = float(np.clip(-v_t / K_t,</p>
+        <p class="code">                   -friction * j_n, friction * j_n))</p>
+        <p class="code">Jt = j_t * t</p>
+        <p class="code">body.vel += Jt / body.mass</p>
+        <p class="code">body.omega += cross2(r, Jt) / body.inertia</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Effect</b> : with friction the pusher can drag the T sideways and rotate it; with \(\mu=0\) it <span class="red">slips along the surface</span> (try F in the keyboard demo).</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Walls and Penetration Correction">
+  <p class="lead">A wall is a kinematic body with zero velocity — the same impulse function handles it</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:500px">
+        <p class="sub-h">Wall = pusher with \(\mathbf v=\mathbf 0\)</p>
+        <div class="eq sm">\[\mathbf v_{\text{other}}=\mathbf 0,\qquad \frac1{m_{\text{wall}}}=0\]</div>
+        <p class="def">Left wall: \(\ \delta=x_{\min}-p_{i,x}&gt;0,\ \ \mathbf n=(1,0)\)</p>
+        <p class="sub-h">Penetration correction</p>
+        <div class="eqbox"><div class="eq sm">\[\mathbf x_G\leftarrow\mathbf x_G+0.8\,\max(\delta-10^{-4},0)\,\mathbf n\]</div></div>
+        <p class="def">Discrete time jumps \(t\to t+\Delta t\) leave overlaps that impulses alone cannot remove.</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_keyboard_sim.py : wall_contacts · substep (step 4)</p>
+        <p class="code">world = body.pos + body.vertices @ rotation_matrix(body.angle).T</p>
+        <p class="code">for p in world:</p>
+        <p class="code">    for depth, n in ((x_min - p[0], (1.0, 0.0)), ...):</p>
+        <p class="code">        if depth &gt; 0:</p>
+        <p class="code">            contacts.append((p.copy(), np.array(n), depth))</p>
+        <p class="code"> </p>
+        <p class="code"><span class="cm"># 4. contact solver: pusher-T and wall-T</span></p>
+        <p class="code">for _ in range(3):</p>
+        <p class="code">    c = circle_vs_T(P.pos, P.radius, T.pos, T.angle, T.vertices)</p>
+        <p class="code">    if c is not None:</p>
+        <p class="code">        jn, jt = resolve_impulse(T, P.vel, c, e, mu)</p>
+        <p class="code">    for w in wall_contacts(T):</p>
+        <p class="code">        resolve_impulse(T, np.zeros(2), w, e, mu)</p>
+        <p class="code"> </p>
+        <p class="code"><span class="cm"># end of resolve_impulse</span></p>
+        <p class="code">body.pos += 0.8 * max(pen - 1e-4, 0.0) * n</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Physics Summary: Equation ↔ Code">
+  <p class="lead">Every line of the simulator is an equation from the dynamics lecture</p>
+  <div class="content">
+    <table class="t sm">
+      <tr><th style="width:300px">Lecture idea</th><th style="width:430px">Equation</th><th>Code</th></tr>
+      <tr><td>PD control</td><td>\(\mathbf a_P=K_p(\mathbf x^{*}-\mathbf x_P)-K_d\mathbf v_P\)</td><td>substep, step 1</td></tr>
+      <tr><td>Parallel-axis theorem</td><td>\(I_G=\sum\big[\tfrac{m_i}{12}(a_i^2+b_i^2)+m_id_i^2\big]\)</td><td>make_T_geometry</td></tr>
+      <tr><td>Relative velocity</td><td>\(\mathbf v_C=\mathbf v_G+\boldsymbol\omega\times\mathbf r\)</td><td>omega_cross_r</td></tr>
+      <tr><td>Restitution</td><td>\(v_n^{+}=-e\,v_n^{-}\)</td><td>j_n = -(1+e) v_n / K_n</td></tr>
+      <tr><td>Linear impulse–momentum</td><td>\(\Delta\mathbf v_G=\mathbf J/m\)</td><td>body.vel += J / m</td></tr>
+      <tr><td>Angular impulse–momentum</td><td>\(\Delta\omega=(\mathbf r\times\mathbf J)/I\)</td><td>body.omega += cross2(r, J) / I</td></tr>
+      <tr><td>Coulomb friction</td><td>\(\lvert j_t\rvert\le\mu j_n\)</td><td>np.clip(-v_t / K_t, ...)</td></tr>
+      <tr><td>Impulse = force × time</td><td>\(\mathbf F\approx\sum\mathbf J/\Delta t\)</td><td>advance</td></tr>
+    </table>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Files</b> : derivations in pusht_mini_sim.py · real-time version in pusht_keyboard_sim.py · random tasks in pusht_imitation.py</p>
+    </div>
+  </div>
+</section>
+
+<!-- @after: Scripted Expert: Impulse–Momentum as a Policy -->
+<section class="slide" data-title="Scripted Expert: Equation ↔ Code">
+  <p class="lead">Score each candidate push by how well its impulse response points toward the goal</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:480px">
+        <p class="sub-h">Desired change (\(L=0.8\))</p>
+        <div class="eq sm">\[\mathbf d=\big(x_g-x_G,\ y_g-y_G,\ L(\theta_g-\theta)\big)\]</div>
+        <p class="sub-h">Response to a unit impulse at \(C_k\)</p>
+        <div class="eq sm">\[\mathbf c_k=\Big(\frac{\mathbf n_k}{m},\ L\,\frac{\mathbf r_k\times\mathbf n_k}{I}\Big)\]</div>
+        <p class="sub-h">Cosine score</p>
+        <div class="eqbox"><div class="eq sm">\[s_k=\frac{\mathbf c_k\cdot\mathbf d}{\lVert\mathbf c_k\rVert\lVert\mathbf d\rVert}\]</div></div>
+        <p class="def">Penalty for pushing into a touching wall; +0.1 for keeping the same contact.</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_imitation.py : ScriptedExpert.act</p>
+        <p class="code">e = sim.goal_pos - T.pos</p>
+        <p class="code">d = np.array([e[0], e[1],</p>
+        <p class="code">              self.L * wrap_angle(sim.goal_angle - T.angle)])</p>
+        <p class="code">for k, (c_local, out_local) in enumerate(self.cands):</p>
+        <p class="code">    cw, out = T.pos + R @ c_local, R @ out_local</p>
+        <p class="code">    n_in, r = -out, cw - T.pos</p>
+        <p class="code">    c = np.array([n_in[0] / T.mass, n_in[1] / T.mass,</p>
+        <p class="code">                  self.L * cross2(r, n_in) / T.inertia])</p>
+        <p class="code">    score = c @ d / (np.linalg.norm(c) * d_norm + 1e-9)</p>
+        <p class="code">    for n_wall in walls:</p>
+        <p class="code">        if n_in @ np.array(n_wall) &lt; -0.3:</p>
+        <p class="code">            score -= 0.6     <span class="cm"># into that wall</span></p>
+        <p class="code">    if k == self.cur:</p>
+        <p class="code">        score += 0.1         <span class="cm"># hysteresis</span></p>
+        <p class="code"> </p>
+        <p class="code"><span class="cm"># push: slower when close to the goal</span></p>
+        <p class="code">step = float(np.clip(0.3 * d_norm, 0.04, 0.12))</p>
+        <p class="code">return P.pos - out * (step + 0.04)</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- @after: Goal Frame: Relative Motion Removes the Random Goal -->
+<section class="slide" data-title="Goal Frame: Equation ↔ Code">
+  <p class="lead">A rotation and a translation — written out by hand so it works on any batch shape</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:500px">
+        <div class="eqbox"><div class="eq sm">\[\tilde{\mathbf p}=R(\theta_g)^{\!\top}(\mathbf p-\mathbf x_g)=\begin{pmatrix}c&amp;s\\-s&amp;c\end{pmatrix}\mathbf v\]</div></div>
+        <div class="eq sm">\[o_t=\big(\tilde{\mathbf x}_P,\ \tilde{\mathbf x}_G,\ \cos\tilde\theta,\ \sin\tilde\theta\big)\]</div>
+        <div class="eq sm">\[\tilde{\mathbf a}=R(\theta_g)^{\!\top}(\mathbf a-\mathbf x_P),\quad \mathbf a=\mathbf x_P+R(\theta_g)\tilde{\mathbf a}\]</div>
+        <p class="def">State layout: \(s=(x_P,y_P,x_G,y_G,\theta,x_g,y_g,\theta_g)\) → indices 0–7.</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_imitation.py : to_goal_frame · make_obs · action_to_model</p>
+        <p class="code">def to_goal_frame(points, state, origin=None):</p>
+        <p class="code">    c, s = math.cos(state[7]), math.sin(state[7])</p>
+        <p class="code">    v = points - (state[5:7] if origin is None else origin)</p>
+        <p class="code">    return np.stack([ c * v[..., 0] + s * v[..., 1],</p>
+        <p class="code">                     -s * v[..., 0] + c * v[..., 1]], -1)</p>
+        <p class="code"> </p>
+        <p class="code">def make_obs(state):</p>
+        <p class="code">    p = to_goal_frame(state[0:2], state)</p>
+        <p class="code">    T = to_goal_frame(state[2:4], state)</p>
+        <p class="code">    dth = state[4] - state[7]</p>
+        <p class="code">    return np.array([p[0], p[1], T[0], T[1],</p>
+        <p class="code">                     math.cos(dth), math.sin(dth)])</p>
+        <p class="code"> </p>
+        <p class="code">def action_to_model(actions, state):</p>
+        <p class="code">    return to_goal_frame(actions, state, origin=state[0:2])</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- @after: Diffusion Policy (DDPM) in Three Steps -->
+<section class="slide" data-title="Diffusion Policy: Equation ↔ Code">
+  <p class="lead">Training is one line of noise mixing; sampling is a loop of K = 50 denoising steps</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:470px">
+        <p class="sub-h">Training</p>
+        <div class="eq sm">\[\mathbf a^k=\sqrt{\bar\alpha_k}\,\mathbf a^0+\sqrt{1-\bar\alpha_k}\,\boldsymbol\epsilon\]</div>
+        <div class="eqbox"><div class="eq sm">\[\mathcal L=\lVert\epsilon_\phi(\mathbf a^k,k,o)-\boldsymbol\epsilon\rVert^2\]</div></div>
+        <p class="sub-h">Sampling</p>
+        <div class="eq sm">\[\hat{\mathbf a}^0=\frac{\mathbf a^k-\sqrt{1-\bar\alpha_k}\,\epsilon_\phi}{\sqrt{\bar\alpha_k}}\]</div>
+        <div class="eq sm">\[\mathbf a^{k-1}=\mu_k(\hat{\mathbf a}^0,\mathbf a^k)+\sigma_k\mathbf z\]</div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_imitation.py : DiffusionPolicy.loss · predict</p>
+        <p class="code">def loss(self, x, y):</p>
+        <p class="code">    a0 = self.ny(y)</p>
+        <p class="code">    k = torch.randint(0, self.K, (len(a0),))</p>
+        <p class="code">    eps = torch.randn_like(a0)</p>
+        <p class="code">    ab = self.abar[k][:, None]</p>
+        <p class="code">    a_k = ab.sqrt() * a0 + (1 - ab).sqrt() * eps</p>
+        <p class="code">    return ((self.eps_hat(a_k, k, self.nx(x)) - eps) ** 2).mean()</p>
+        <p class="code"> </p>
+        <p class="code">def predict(self, x):</p>
+        <p class="code">    a = torch.randn(len(xn), self.d_act)    <span class="cm"># a^K ~ N(0, I)</span></p>
+        <p class="code">    for k in reversed(range(self.K)):</p>
+        <p class="code">        ab = self.abar[k]</p>
+        <p class="code">        a0 = (a - (1 - ab).sqrt() * self.eps_hat(a, kk, xn)) / ab.sqrt()</p>
+        <p class="code">        mean = (ab_prev.sqrt() * self.betas[k] / (1 - ab)) * a0 \</p>
+        <p class="code">             + (self.alphas[k].sqrt() * (1 - ab_prev) / (1 - ab)) * a</p>
+        <p class="code">        var = self.betas[k] * (1 - ab_prev) / (1 - ab)</p>
+        <p class="code">        a = mean + var.sqrt() * torch.randn_like(a)</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- @after: Reward Design -->
+<section class="slide" data-title="Reward: Equation ↔ Code">
+  <p class="lead">Two short functions — the RL training loop calls them once per environment step</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:520px">
+        <div class="eq sm">\[c(s)=\lVert\mathbf x_G-\mathbf x_g\rVert+0.3\,\lvert\theta-\theta_g\rvert\]</div>
+        <div class="eqbox"><div class="eq sm">\[r_t=10\,\Delta c-0.02\max(\lVert\mathbf x_P-\mathbf x_G\rVert-1,0)\]</div><div class="eq sm">\[\qquad-\,0.01+10\cdot\mathbb 1[\text{success}]\]</div></div>
+        <p class="def">\(\Delta c=c(s_t)-c(s_{t+1})\) : positive when the T moved closer to the goal pose.</p>
+        <p class="def">wrap_angle keeps \(\theta-\theta_g\) in \((-\pi,\pi]\), so \(359^\circ\) counts as \(1^\circ\).</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_rl.py : task_cost · reward</p>
+        <p class="code">def task_cost(sim):</p>
+        <p class="code">    return float(np.linalg.norm(sim.T.pos - sim.goal_pos)</p>
+        <p class="code">        + 0.3 * abs(wrap_angle(sim.T.angle - sim.goal_angle)))</p>
+        <p class="code"> </p>
+        <p class="code">def reward(c_before, c_after, sim, success):</p>
+        <p class="code">    dist_pt = float(np.linalg.norm(sim.pusher.pos - sim.T.pos))</p>
+        <p class="code">    return (10.0 * (c_before - c_after)</p>
+        <p class="code">            - 0.02 * max(dist_pt - 1.0, 0.0)</p>
+        <p class="code">            - 0.01</p>
+        <p class="code">            + (10.0 if success else 0.0))</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- @after: PPO: Small, Clipped Policy Updates -->
+<section class="slide" data-title="PPO: Equation ↔ Code">
+  <p class="lead">GAE runs backwards through the rollout; the clipped loss is one line</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:470px">
+        <p class="sub-h">Advantage, backwards in time</p>
+        <div class="eq sm">\[\delta_t=r_t+\gamma V(s_{t+1})(1-d_t)-V(s_t)\]</div>
+        <div class="eq sm">\[\hat A_t=\delta_t+\gamma\lambda(1-d_t)\hat A_{t+1}\]</div>
+        <p class="sub-h">Clipped surrogate</p>
+        <div class="eqbox"><div class="eq sm">\[L=-\mathbb E\big[\min(\rho\hat A,\ \mathrm{clip}(\rho,0.8,1.2)\hat A)\big]\]</div></div>
+        <div class="eq sm">\[\rho=\exp\big(\log\pi_\phi(a\mid s)-\log\pi_{\text{old}}(a\mid s)\big)\]</div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_rl.py : train loop</p>
+        <p class="code">for t in reversed(range(n_steps)):                  <span class="cm"># GAE</span></p>
+        <p class="code">    nv = v_next if t == n_steps - 1 else V[t + 1]</p>
+        <p class="code">    delta = R[t] + gamma * nv * (1 - DONE[t]) - V[t]</p>
+        <p class="code">    g = delta + gamma * lam * (1 - DONE[t]) * g</p>
+        <p class="code">    adv[t] = g</p>
+        <p class="code">RET = ADV + torch.cat(V)                 <span class="cm"># critic target</span></p>
+        <p class="code"> </p>
+        <p class="code">for _ in range(10):                      <span class="cm"># PPO epochs</span></p>
+        <p class="code">    ...</p>
+        <p class="code">    lv = ((model.value(Ob[idx]) - RET[idx]) ** 2).mean()</p>
+        <p class="code">    if it &gt;= critic_warmup:</p>
+        <p class="code">        ratio = (policy_dist(model, Ob[idx]).log_prob(Ab[idx])</p>
+        <p class="code">                 .sum(-1) - LPb[idx]).exp()</p>
+        <p class="code">        la = -torch.min(ratio * ADV[idx],</p>
+        <p class="code">                        ratio.clamp(0.8, 1.2) * ADV[idx]).mean()</p>
+      </div>
+    </div>
+  </div>
+</section>

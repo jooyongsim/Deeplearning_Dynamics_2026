@@ -1,0 +1,569 @@
+<!-- ====================================================================== 01 -->
+<section class="slide cover" data-title="Cover">
+  <div class="rule top"></div><div class="rule bot"></div>
+  <img class="mark-lg" src="assets/logo/smwu-logo-mark-mono.png" alt="">
+  <div class="title-box">
+    <h1>Learning to Push:<br>Imitation Learning and RL on PushT</h1>
+  </div>
+  <div class="meta"><div>Department of Mechanical Engineering</div><div>2026.10.07 (Wed)</div><div>Joo Yong Sim</div></div>
+  <div class="sub">Hands-on tutorial: pusht_imitation.py · pusht_rl.py · pusht_rl_realtime.py · pusht_rl_eval.py</div>
+</section>
+
+<!-- ====================================================================== 02 -->
+<section class="slide" data-title="Lecture Goals: From Physics to Policy">
+  <p class="lead">The PushT simulator from the dynamics lecture becomes a training ground</p>
+  <div class="content">
+    <div class="row" style="margin-top:10px">
+      <div class="blk t-blue" style="width:250px;height:124px"><span class="nm">Physics</span><span class="en">impulse · friction · walls</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:250px;height:124px"><span class="nm">Demonstrations</span><span class="en">human or scripted expert</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-green" style="width:250px;height:124px"><span class="nm">Imitation</span><span class="en">MLP-BC · Diffusion Policy</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-purple" style="width:250px;height:124px"><span class="nm">RL fine-tuning</span><span class="en">PPO, started from BC</span></div>
+    </div>
+    <div class="abs" style="left:0;right:0;top:186px">
+      <p class="sub-h">Three questions answered with experiments in this lecture</p>
+      <p class="def"><b>Q1 — Data</b> : how many demonstrations do we need to collect?</p>
+      <p class="def"><b>Q2 — Model</b> : which network should learn from them — a regressor or a generative model?</p>
+      <p class="def"><b>Q3 — Beyond imitation</b> : can reinforcement learning do better, from scratch or starting from the imitation policy?</p>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Pipeline</b> : demonstrations \(\mathcal D=\{(o_t,a_t)\}\) → dataset → policy \(\pi_\phi(\mathbf a\mid o)\) → <span class="red">closed-loop success rate on unseen tasks</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 03 -->
+<section class="slide" data-title="The PushT Task: Random Start, Random Goal">
+  <p class="lead">One seed fixes the initial T pose, the goal pose and the pusher position</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:560px">
+        <table class="t sm">
+          <tr><th style="width:150px">What</th><th>Distribution</th></tr>
+          <tr><td>T start pose</td><td>\(x\sim\mathcal U(-2,2),\ y\sim\mathcal U(-1,1),\ \theta\sim\mathcal U(-\pi,\pi)\)</td></tr>
+          <tr><td>Goal pose</td><td>same; redrawn if too easy (\(&lt;1\) m and \(&lt;45^\circ\))</td></tr>
+          <tr><td>Pusher</td><td>uniform in the arena, \(\ge 1.6\) from the T</td></tr>
+        </table>
+        <p class="sub-h" style="margin-top:22px">Success</p>
+        <div class="eqbox"><div class="eq sm">\[\lVert\mathbf x_G-\mathbf x_g\rVert&lt;0.15\ \text{m}\ \ \text{and}\ \ \lvert\theta-\theta_g\rvert&lt;10^\circ\]</div></div>
+        <p class="def"><b>Seeds</b> : demos use 100000+ (expert) and 200000+ (human); <span class="red">evaluation uses 0, 1, 2, …</span> — tasks never seen in training.</p>
+      </div>
+      <div class="tfig">
+        <img src="assets/figures/il_random_tasks.png" style="width:630px" alt="Eight random PushT tasks">
+        <div class="src">Blue: T start · green dashed: goal · orange: pusher (seeds 0–7)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 04 -->
+<section class="slide" data-title="Control Loop and Demonstration Data">
+  <p class="lead">The policy moves the pusher's target at 10 Hz; the physics runs 20 substeps in between</p>
+  <div class="content">
+    <div class="two">
+      <div>
+        <p class="sub-h">State (8 numbers — what a human sees)</p>
+        <div class="eq sm">\[s_t=\big(\underbrace{x_P,\,y_P}_{\text{pusher}},\ \underbrace{x_G,\,y_G,\,\theta}_{\text{T}},\ \underbrace{x_g,\,y_g,\,\theta_g}_{\text{goal}}\big)\]</div>
+        <p class="sub-h" style="margin-top:14px">Action</p>
+        <div class="eqbox"><div class="eq sm">\[a_t=(x^{*},\,y^{*})\ \ \text{= pusher target},\qquad \Delta t=0.1\ \text{s}\]</div></div>
+        <p class="def">A PD controller pulls the pusher toward the target; contact with the T is the impulse model of the dynamics lecture.</p>
+      </div>
+      <div>
+        <p class="sub-h">One episode, saved to .npz</p>
+        <div class="eq sm">\[\tau=\big((s_0,a_0),(s_1,a_1),\dots,(s_{T-1},a_{T-1})\big)\]</div>
+        <table class="t sm" style="margin-top:6px">
+          <tr><th style="width:170px">Array</th><th style="width:130px">Shape</th><th>Meaning</th></tr>
+          <tr><td>states</td><td>(N, 8)</td><td>\(s_t\)</td></tr>
+          <tr><td>actions</td><td>(N, 2)</td><td>\(a_t\) = target</td></tr>
+          <tr><td>episode_ends</td><td>(E,)</td><td>where each episode ends</td></tr>
+          <tr><td>seeds</td><td>(E,)</td><td>re-creates the start</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Only successful episodes are saved</b> : imitating a failure teaches failure (filtered behavior cloning). Same format as the Diffusion Policy / LeRobot PushT data.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 05 -->
+<section class="slide" data-title="Collecting Human Demonstrations">
+  <p class="lead">python pusht_imitation.py collect — the keyboard simulator with a recorder added</p>
+  <div class="content">
+    <div class="two">
+      <div class="tfig" style="flex:none;width:640px">
+        <img src="assets/figures/il_recorder.png" style="width:640px" alt="Demo recorder window">
+        <div class="src">Recorder window: arrows / WASD or mouse drag move the target; reaching the goal auto-saves</div>
+      </div>
+      <div>
+        <p class="sub-h">Three rules for clean data</p>
+        <p class="def"><b>Fixed 10 Hz</b> : the screen draws at 20 fps, but \((s_t,a_t)\) is recorded every 0.1 s — one human step = one env.step().</p>
+        <p class="def"><b>Idle start trimmed</b> : time spent thinking before the first move is not recorded, so the policy never learns to stand still.</p>
+        <p class="def"><b>Physics fixed</b> : friction / restitution switches are off — same state, same consequence.</p>
+        <p class="def" style="margin-top:6px"><b>Keys</b> : N new task · R restart · Backspace delete last · Space pause</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Cost</b> : one human demo takes 15–30 s, so 200 demos take <span class="red">1.5–2 hours</span> → we also need an automatic demonstrator.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 06 -->
+<section class="slide" data-title="Scripted Expert: Impulse–Momentum as a Policy">
+  <p class="lead">A "virtual human" that chooses where to push with the lecture's impulse equations</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:610px">
+        <p class="sub-h">(1) Where to push — unit impulse \(\mathbf n_k\) at candidate \(C_k\)</p>
+        <div class="eq sm">\[\Delta\mathbf v_G=\frac{\mathbf n_k}{m},\qquad \Delta\omega=\frac{\mathbf r_k\times\mathbf n_k}{I}\]</div>
+        <div class="eqbox"><div class="eq sm">\[k^{*}=\arg\max_k\ \frac{\mathbf c_k\cdot\mathbf d}{\lVert\mathbf c_k\rVert\,\lVert\mathbf d\rVert}\]</div></div>
+      </div>
+      <div>
+        <p class="def"><b>Candidates</b> : 8 edges × 3 points; \(\mathbf d\) = desired \((\Delta x,\Delta y,L\,\Delta\theta)\), \(\mathbf c_k\) = its effect.</p>
+        <p class="def"><b>(2) Approach</b> : go to a standoff point; orbit around the T if the straight path is blocked.</p>
+        <p class="def"><b>(3) Push</b> : along \(\mathbf n_k\), slowing in proportion to the remaining error (the T slides \(\approx v/c_v\) after release).</p>
+      </div>
+    </div>
+    <div class="tfig" style="margin-top:2px">
+      <img src="assets/figures/il_expert_rollouts.png" style="height:205px" alt="Expert rollouts">
+      <div class="src">Expert rollouts (orange: pusher path, colour: time) — success ≈ 88–91 % on random tasks</div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 07 -->
+<section class="slide" data-title="How Many Demonstrations? Reference Points">
+  <p class="lead">Published PushT and manipulation work uses 50–200 demonstrations per task</p>
+  <div class="content">
+    <table class="t sm">
+      <tr><th style="width:400px">Source</th><th style="width:430px">Task</th><th>Demonstrations</th></tr>
+      <tr><td>Diffusion Policy (Chi et al., 2023)</td><td>PushT, <b>fixed goal</b>, random start</td><td>200 human (≈ 25k steps)</td></tr>
+      <tr><td>LeRobot pusht dataset</td><td>same task</td><td>206 episodes, 25,650 frames</td></tr>
+      <tr><td>ACT / ALOHA (Zhao et al., 2023)</td><td>real bimanual robot</td><td>50 per task</td></tr>
+    </table>
+    <p class="sub-h" style="margin-top:24px">Suggested plan for human demonstrations (15–30 s each)</p>
+    <table class="t sm">
+      <tr><th style="width:250px">Stage</th><th style="width:150px">Demos</th><th style="width:150px">Time</th><th>Purpose</th></tr>
+      <tr><td>Pipeline check</td><td>10–20</td><td>10 min</td><td>save / load / train runs, loss goes down</td></tr>
+      <tr><td>First results</td><td>50–100</td><td>30–60 min</td><td>successes start; study the failures</td></tr>
+      <tr><td>Usable policy</td><td>≥ 200</td><td>1.5–2 h</td><td>Diffusion Policy paper scale</td></tr>
+    </table>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>More important than the count</b> : spread-out initial conditions, <span class="red">a consistent strategy</span>, and discarded failures. Our goal is random too — harder than the original PushT.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 08 -->
+<section class="slide" data-title="Goal Frame: Relative Motion Removes the Random Goal">
+  <p class="lead">Ride along with the goal — the same idea as relative motion in rigid-body kinematics</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:740px">
+        <div class="eqbox"><div class="eq sm">\[\tilde{\mathbf p}=R(\theta_g)^{\!\top}(\mathbf p-\mathbf x_g),\qquad \tilde\theta=\theta-\theta_g\]</div></div>
+        <div class="eq sm">\[o_t=\big(\tilde x_P,\ \tilde y_P,\ \tilde x_G,\ \tilde y_G,\ \cos\tilde\theta,\ \sin\tilde\theta\big)\]</div>
+        <div class="eq sm">\[\tilde{\mathbf a}_{t+i}=R(\theta_g)^{\!\top}\big(\mathbf a_{t+i}-\mathbf x_P(t)\big)\]</div>
+        <table class="t sm" style="margin-top:4px">
+          <tr><th style="width:400px">Action representation (goal frame)</th><th style="width:150px">MLP-BC</th><th>Diffusion</th></tr>
+          <tr><td>absolute target position</td><td>26 %</td><td>20 %</td></tr>
+          <tr><td>offset from the current pusher</td><td><b>36 %</b></td><td><b>46 %</b></td></tr>
+        </table>
+      </div>
+      <div class="tfig">
+        <img src="assets/figures/il_goal_frame.png" style="height:350px" alt="One training sample in the goal frame">
+        <div class="src">One training sample: goal at the origin, 0°</div>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Without the goal frame</b> : <span class="red">0 % success for both models</span> — a good representation saves data.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 09 -->
+<section class="slide" data-title="Observation History and Action Chunks">
+  <p class="lead">See two frames, plan eight actions, execute four, then re-plan</p>
+  <div class="content">
+    <div class="row" style="margin-top:8px">
+      <div class="blk t-blue" style="width:250px;height:124px"><span class="nm">Observe</span><span class="en">\((o_{t-1},\,o_t)\), \(T_o=2\)</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-green" style="width:250px;height:124px"><span class="nm">Predict</span><span class="en">\(\mathbf a_{t:t+8}\), \(H=8\) (0.8 s)</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:250px;height:124px"><span class="nm">Execute</span><span class="en">first \(T_a=4\) actions</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-purple" style="width:250px;height:124px"><span class="nm">Re-plan</span><span class="en">receding horizon</span></div>
+    </div>
+    <div class="two" style="margin-top:30px">
+      <div>
+        <p class="def"><b>Two frames</b> : the difference gives velocity — is the T still sliding?</p>
+        <p class="def"><b>Chunks</b> : one-step predictions change every 0.1 s and jitter; a chunk commits to a motion for a moment.</p>
+      </div>
+      <div>
+        <p class="def"><b>Normalize</b> : \(z=(x-\mu)/\sigma\), statistics from the training set only.</p>
+        <p class="def"><b>Split by episode</b> : neighbouring steps are nearly identical — a step-wise split leaks data into validation.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Trade-off</b> : 4 steps run open-loop, so an unexpected slide is corrected only at the next re-plan.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 10 -->
+<section class="slide" data-title="Which Model? The Multimodality Problem">
+  <p class="lead">MSE learns the average action — the average of two good actions can be bad</p>
+  <div class="content">
+    <div class="eqbox"><div class="eq sm">\[\min_\phi\ \mathbb E_{(o,a)\sim\mathcal D}\big\lVert\pi_\phi(o)-a\big\rVert^2\quad\Longrightarrow\quad \pi^{*}(o)=\mathbb E[a\mid o]\]</div></div>
+    <div class="tfig">
+      <img src="assets/figures/il_toy.png" style="width:1080px" alt="Toy multimodality experiment">
+      <div class="src">Toy problem: demonstrations avoid an obstacle up or down (50/50). MLP-BC learns \(a\approx0\) — straight into it; Diffusion samples both modes.</div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>In PushT</b> : "go around the left or the right side of the T?" — <span class="red">MLP-BC hesitates in between</span>; human demos are even more multimodal.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 11 -->
+<section class="slide" data-title="Policy Model Candidates">
+  <p class="lead">Learn a distribution \(p(a\mid o)\) instead of a single average action</p>
+  <div class="content">
+    <table class="t sm">
+      <tr><th style="width:320px">Model</th><th style="width:280px">Output</th><th style="width:170px">Multimodal</th><th>Notes</th></tr>
+      <tr><td>MLP-BC (MSE)</td><td>one point</td><td>no (mean)</td><td>fastest, simplest — baseline</td></tr>
+      <tr><td>MLP-BC + action chunk</td><td>\(H\) points</td><td>no</td><td>temporally consistent</td></tr>
+      <tr><td>GMM / MDN</td><td>\(K\) Gaussians</td><td>partly</td><td>number of modes \(K\) fixed in advance</td></tr>
+      <tr><td>VQ-BeT</td><td>discrete code + offset</td><td>yes</td><td>Transformer</td></tr>
+      <tr><td>ACT (CVAE + Transformer)</td><td>chunk</td><td>yes</td><td>real robot, 50 demos</td></tr>
+      <tr><td><b>Diffusion Policy</b></td><td>chunk, sampled</td><td><b>yes</b></td><td>standard PushT baseline, stable training</td></tr>
+    </table>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def"><b>Our choice</b> : MLP-BC as the baseline, Diffusion Policy as the main model — <span class="red">same MLP trunk</span> (3 layers, width 512, Mish).</p>
+      <p class="def" style="margin:0"><b>So the only difference is</b> : learning the mean vs. learning the distribution.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 12 -->
+<section class="slide" data-title="Diffusion Policy (DDPM) in Three Steps">
+  <p class="lead">Learn to remove noise from action chunks; at run time, denoise noise into actions</p>
+  <div class="content">
+    <p class="sub-h">1. Forward process: mix noise into a clean chunk \(\mathbf a^0\)</p>
+    <div class="eq sm">\[\mathbf a^k=\sqrt{\bar\alpha_k}\,\mathbf a^0+\sqrt{1-\bar\alpha_k}\,\boldsymbol\epsilon,\qquad \boldsymbol\epsilon\sim\mathcal N(\mathbf 0,I),\quad k=1,\dots,K\]</div>
+    <p class="sub-h" style="margin-top:8px">2. Training: predict the noise</p>
+    <div class="eqbox"><div class="eq sm">\[\mathcal L=\mathbb E_{k,\boldsymbol\epsilon}\big\lVert\epsilon_\phi(\mathbf a^k,k,o)-\boldsymbol\epsilon\big\rVert^2\]</div></div>
+    <p class="sub-h">3. Sampling: start from \(\mathbf a^K\sim\mathcal N(\mathbf 0,I)\), step \(k=K,\dots,1\)</p>
+    <div class="eq sm">\[\hat{\mathbf a}^0=\frac{\mathbf a^k-\sqrt{1-\bar\alpha_k}\,\epsilon_\phi}{\sqrt{\bar\alpha_k}},\qquad \mathbf a^{k-1}=\frac{\sqrt{\bar\alpha_{k-1}}\,\beta_k}{1-\bar\alpha_k}\hat{\mathbf a}^0+\frac{\sqrt{\alpha_k}\,(1-\bar\alpha_{k-1})}{1-\bar\alpha_k}\mathbf a^k+\sigma_k\mathbf z\]</div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Why it is multimodal</b> : each run starts from different noise → a different sample → <span class="red">different modes of the demonstrations</span>. Cosine schedule \(\beta_k\), \(K=50\).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 13 -->
+<section class="slide" data-title="Training Settings Found by Experiment">
+  <p class="lead">Diffusion needs more capacity or more steps than MLP-BC before it pays off</p>
+  <div class="content">
+    <table class="t sm">
+      <tr><th style="width:640px">Setting (180 expert demos, unseen tasks)</th><th style="width:220px">MLP-BC</th><th>Diffusion</th></tr>
+      <tr><td>width 256, lr \(10^{-3}\), no EMA, 30k steps</td><td>32 %</td><td>8 %</td></tr>
+      <tr><td>width 256, lr \(3\times10^{-3}\) + EMA, 30k steps</td><td>36–46 %</td><td>18–42 %</td></tr>
+      <tr><td>width 256, lr \(3\times10^{-3}\) + EMA, 80k steps</td><td>—</td><td>64 %</td></tr>
+      <tr><td><b>width 512</b>, lr \(3\times10^{-3}\) + EMA, 30k steps (<b>default</b>)</td><td>38–59 %</td><td>54–63 %</td></tr>
+      <tr><td>width 512, lr \(3\times10^{-3}\) + EMA, 50k steps</td><td>—</td><td>69 %</td></tr>
+    </table>
+    <div class="two" style="margin-top:16px">
+      <div>
+        <div class="eqbox"><div class="eq sm">\[\phi_{\text{EMA}}\leftarrow 0.999\,\phi_{\text{EMA}}+0.001\,\phi\]</div></div>
+      </div>
+      <div>
+        <p class="def">Batch 256, AdamW, cosine lr decay; about 1 min per model on GPU, 4 min on CPU.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Caution</b> : re-running the same setting moves success by <span class="red">±10 %</span>; validation loss does not predict success (0.116 → 0.132 while 62 % → 69 %).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 14 -->
+<section class="slide" data-title="How Many Demonstrations? Measured">
+  <p class="lead">Diffusion reaches most of its performance at about 100 demonstrations</p>
+  <div class="content">
+    <div class="two">
+      <div class="tfig" style="flex:none;width:600px">
+        <img src="assets/figures/il_scaling.png" style="height:420px" alt="Success rate versus number of demonstrations">
+      </div>
+      <div>
+        <p class="sub-h">Experiment</p>
+        <p class="def">400 expert demos → train on the first \(N\) → width 512, 30k steps → <b>100 unseen tasks</b>, closed loop.</p>
+        <p class="sub-h" style="margin-top:12px">Reading</p>
+        <p class="def"><b>Diffusion</b> is ahead at every \(N\), most clearly with little data.</p>
+        <p class="def"><b>MLP-BC</b> needs about 3× more demos for the same success.</p>
+        <p class="def"><b>Human demos</b> : aim for <span class="red">at least 100, ideally 200</span>.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Reproduce</b> : tools/imitation_experiments/full/run_scale512.sh (10 jobs, about 15 min)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 15 -->
+<section class="slide" data-title="Closed-Loop Rollouts and Failure Modes">
+  <p class="lead">Both learned policies stay below the expert that taught them</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:800px">
+        <div class="tfig"><img src="assets/figures/il_rollouts_bc.png" style="width:800px" alt="MLP-BC rollouts"><div class="src">MLP-BC rollouts on unseen seeds</div></div>
+        <div class="tfig" style="margin-top:12px"><img src="assets/figures/il_rollouts_diff.png" style="width:800px" alt="Diffusion rollouts"><div class="src">Diffusion Policy rollouts on the same seeds</div></div>
+      </div>
+      <div>
+        <p class="def"><b>MLP-BC</b> : stalls or jitters beside the T — it averages between strategies.</p>
+        <p class="def"><b>Diffusion</b> : commits to one strategy; fails at the final 0.15 m / 10° alignment or after one big mistake.</p>
+        <p class="def"><b>Both</b> : <span class="red">covariate shift</span> — their own errors lead to states never seen in the demos.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Default run (180 demos)</b> : expert 88 % · MLP-BC 38–59 % · Diffusion 54–63 %. Remedy: DAgger — record human corrections.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 16 -->
+<section class="slide" data-title="From Imitation to Reinforcement Learning">
+  <p class="lead">RL needs no demonstrations — only a reward and a great deal of trial and error</p>
+  <div class="content">
+    <div class="eqbox"><div class="eq sm">\[s_t\xrightarrow{\ \pi_\phi(a\mid s)\ }a_t\xrightarrow{\ \text{physics}\ }s_{t+1},\ r_t,\qquad \max_\phi\ \mathbb E\Big[\sum_t\gamma^t r_t\Big]\]</div></div>
+    <table class="t sm" style="margin-top:6px">
+      <tr><th style="width:290px">Experiment</th><th style="width:300px">Starting point</th><th>Result (50 unseen tasks, no exploration noise)</th></tr>
+      <tr><td><b>A. RL from scratch</b></td><td>random network</td><td>16.4M steps (2.5 h): <span class="red">0 % success</span></td></tr>
+      <tr><td><b>B. BC → RL</b></td><td>MLP-BC policy</td><td>42 % → 74 % (3M) → <b>80 %</b> (6M, 80 min)</td></tr>
+      <tr><td>Scripted expert</td><td>hand-written rules</td><td>88 %</td></tr>
+    </table>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def"><b>Why A fails</b> : success needs a long sequence — choose a contact, go around, push, align. Random motion almost never completes it, so the success bonus is <span class="red">never observed</span> (the exploration problem).</p>
+      <p class="def" style="margin:0"><b>Why B works</b> : imitation already succeeds about half the time; RL only has to polish behaviour that works.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 17 -->
+<section class="slide" data-title="Reward Design">
+  <p class="lead">Turn "how far is the task from done" into one number, and reward every step of progress</p>
+  <div class="content">
+    <p class="sub-h">Remaining cost (1 rad ≈ 0.3 m)</p>
+    <div class="eq sm">\[c(s)=\lVert\mathbf x_G-\mathbf x_g\rVert+0.3\,\lvert\theta-\theta_g\rvert\]</div>
+    <p class="sub-h" style="margin-top:10px">Reward per step</p>
+    <div class="eqbox"><div class="eq sm">\[r_t=\underbrace{10\big(c(s_t)-c(s_{t+1})\big)}_{\text{progress}}-\underbrace{0.02\max(\lVert\mathbf x_P-\mathbf x_G\rVert-1,0)}_{\text{far from T}}-\underbrace{0.01}_{\text{time}}+\underbrace{10\cdot\mathbb 1[\text{success}]}_{\text{bonus}}\]</div></div>
+    <div class="two">
+      <div>
+        <p class="def"><b>Potential-based shaping</b> : the progress term sums to \(10\,(c(s_0)-c(s_T))\) — a signal every step, without changing the optimal policy.</p>
+      </div>
+      <div>
+        <p class="def"><b>Episode end</b> : success is terminal; at 300 steps it is truncated and bootstrapped with \(V(s_T)\).</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Side effect</b> : the time penalty makes RL <span class="red">finish faster</span> than the expert, which has no such pressure.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 18 -->
+<section class="slide" data-title="PPO: Small, Clipped Policy Updates">
+  <p class="lead">Collect 8,192 steps, estimate advantages, update for 10 epochs — repeat</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:640px">
+        <p class="sub-h">Advantage (GAE), \(\gamma=0.99,\ \lambda=0.95\)</p>
+        <div class="eq sm">\[\delta_t=r_t+\gamma V(s_{t+1})-V(s_t),\quad \hat A_t=\sum_{l\ge0}(\gamma\lambda)^l\delta_{t+l}\]</div>
+        <p class="sub-h" style="margin-top:8px">Clipped objective, \(\rho=\pi_\phi/\pi_{\text{old}}\)</p>
+        <div class="eqbox"><div class="eq sm">\[L=-\mathbb E\big[\min\big(\rho\hat A,\ \mathrm{clip}(\rho,0.8,1.2)\hat A\big)\big]\]</div></div>
+        <p class="def">Gaussian policy \(\mathcal N(\mu_\phi(s),\sigma^2)\): sample while training, use the mean \(\mu_\phi\) for evaluation.</p>
+      </div>
+      <div>
+        <table class="t sm">
+          <tr><th style="width:120px"></th><th style="width:190px">A. scratch</th><th>B. BC → RL</th></tr>
+          <tr><td>Actor</td><td>2 × 256 tanh</td><td>the MLP-BC net</td></tr>
+          <tr><td>Initial \(\sigma\)</td><td>0.6</td><td>0.03 m</td></tr>
+          <tr><td>Actor lr</td><td>\(3\times10^{-4}\)</td><td>\(3\times10^{-5}\)</td></tr>
+          <tr><td>Critic</td><td>new</td><td>new, 10 warm-up updates</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>For B</b> : clipping, a small learning rate and small noise <span class="red">protect the working BC policy</span> from being destroyed early on.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 19 -->
+<section class="slide" data-title="Parallel Simulation">
+  <p class="lead">Pure-Python physics is slow, so 64 environments run at once on 16 CPU processes</p>
+  <div class="content">
+    <div class="row" style="margin-top:4px">
+      <div class="blk t-blue" style="width:380px;height:112px"><span class="nm">Main process</span><span class="en">policy for 64 observations at once</span></div>
+      <div class="arw" style="width:56px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:380px;height:112px"><span class="nm">16 workers × 4 envs</span><span class="en">physics, auto-reset on done</span></div>
+    </div>
+    <div class="two" style="margin-top:26px">
+      <div>
+        <p class="sub-h">Benchmark (idle CPU, 20 cores)</p>
+        <table class="t sm">
+          <tr><td>Steps per PPO iteration</td><td>64 × 128 = 8,192</td></tr>
+          <tr><td>Rollout (physics 3.09 s)</td><td>3.79 s</td></tr>
+          <tr><td>PPO update</td><td>1.91 s (33 %)</td></tr>
+          <tr><td>Env steps / s</td><td>2,159 rollout · <b>1,437</b> total</td></tr>
+        </table>
+      </div>
+      <div>
+        <p class="sub-h">Training wall-clock (from logs)</p>
+        <table class="t sm">
+          <tr><th style="width:230px">Run</th><th style="width:110px">Steps</th><th>Time</th></tr>
+          <tr><td>RL from scratch</td><td>16.4M</td><td>147 min</td></tr>
+          <tr><td>BC+PPO</td><td>0 → 6M</td><td>80 min</td></tr>
+          <tr><td>BC+PPO resumed</td><td>6 → 12M</td><td>70 min</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Backend</b> : CPU multiprocessing (fork + Pipe); the network also runs on the CPU. One environment alone would be <span class="red">≈ 64× slower</span>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 20 -->
+<section class="slide" data-title="RL from Scratch vs BC → RL">
+  <p class="lead">Starting from imitation turns an unsolvable exploration problem into fine-tuning</p>
+  <div class="content">
+    <div class="two">
+      <div class="tfig" style="flex:none;width:700px">
+        <img src="assets/figures/il_rl_curves.png" style="width:700px" alt="RL training curves">
+        <div class="src">Training success with exploration noise (tutorial/checkpoints/rl/*/train_log*.txt)</div>
+      </div>
+      <div>
+        <p class="def"><b>From scratch</b> : return improved −14 → −2.4, the T moves toward the goal, but <span class="red">0 % success</span>; exploration noise collapsed 0.6 → 0.03.</p>
+        <p class="def"><b>BC → RL</b> : 0.44 → 0.88 in 6M steps, then a plateau at 0.87–0.90.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Lesson</b> : demonstrations solve exploration; RL then optimizes what imitation cannot — the reward itself.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 21 -->
+<section class="slide" data-title="Paired Evaluation on Seeds 0–99">
+  <p class="lead">Same 100 unseen tasks, same start, 300 steps, deterministic actions for every policy</p>
+  <div class="content">
+    <div class="two">
+      <div class="tfig" style="flex:none;width:690px">
+        <img src="assets/figures/il_paired.png" style="width:690px" alt="Success rate and time to success">
+        <div class="src">pusht_rl_eval.py → tutorial/eval_results/paired_*.csv / .json</div>
+      </div>
+      <div>
+        <table class="t sm">
+          <tr><th style="width:230px">Scripted vs BC+PPO</th><th style="width:85px">6M</th><th>12M</th></tr>
+          <tr><td>both succeed</td><td>74</td><td>70</td></tr>
+          <tr><td>only scripted</td><td>13</td><td>17</td></tr>
+          <tr><td>only BC+PPO</td><td>8</td><td>7</td></tr>
+          <tr><td>both fail</td><td>5</td><td>6</td></tr>
+          <tr><td>McNemar \(p\)</td><td>0.38</td><td>0.064</td></tr>
+          <tr><td>median steps*</td><td>136 → <b>107</b></td><td>139 → <b>104</b></td></tr>
+        </table>
+        <p class="cap">* on seeds both solved: scripted → BC+PPO</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Result</b> : success is <span class="red">statistically tied with the expert</span>, and BC+PPO is about 3–4 s faster on the same tasks.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 22 -->
+<section class="slide" data-title="Why BC+PPO Stops Near the Expert">
+  <p class="lead">More training made the policy faster, not more successful</p>
+  <div class="content">
+    <div class="two">
+      <div>
+        <p class="sub-h">Measured</p>
+        <p class="def"><b>Within noise</b> : at 82 %, one standard error is about ±4 points with 100 tasks.</p>
+        <p class="def"><b>6M → 12M</b> : success 82 % → 77 %, mean time 12.0 s → 11.1 s.</p>
+        <p class="def"><b>Plateau</b> : training success stayed at 0.87–0.90 with noise \(\sigma\to0.005\).</p>
+        <p class="def"><b>Best checkpoint</b> : 6M, not the newest 12M.</p>
+      </div>
+      <div>
+        <p class="sub-h">Likely structural limits (not yet tested)</p>
+        <p class="def"><b>Less information</b> : 12 inputs vs. the expert's full state and memory.</p>
+        <p class="def"><b>Conservative updates</b> : lr \(3\times10^{-5}\), clipping, small \(\sigma\).</p>
+        <p class="def"><b>Reward ≠ success test</b> : angle weighted 0.3; success needs 0.15 m <i>and</i> 10°.</p>
+        <p class="def"><b>One step at a time</b> : BC drops 54 % → 34 % without chunks.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Not a ceiling</b> : RL optimizes the reward, not imitation — <span class="red">align the reward with the success test</span> to push further.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 23 -->
+<section class="slide" data-title="Real-Time Demo: Five Policies, One Task">
+  <p class="lead">python pusht_rl_realtime.py — every panel replays the same random task live</p>
+  <div class="content">
+    <div class="two">
+      <div class="tfig" style="flex:none;width:760px">
+        <img src="assets/figures/il_realtime.png" style="width:760px" alt="Five-panel real-time demo">
+        <div class="src">Seed 30: script 8.7 s · BC→RL 6.4 / 6.2 s · BC and RL-from-scratch time out</div>
+      </div>
+      <div>
+        <p class="sub-h">Run</p>
+        <p class="code">cd tutorial</p>
+        <p class="code">python pusht_rl_realtime.py</p>
+        <p class="code">python pusht_rl_realtime.py script</p>
+        <p class="code">python pusht_rl.py eval</p>
+        <p class="code">python pusht_rl_eval.py</p>
+        <p class="sub-h" style="margin-top:14px">Keys</p>
+        <p class="def">Space pause · N next task · + / − speed · Q quit</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 24 -->
+<section class="slide" data-title="Summary">
+  <p class="lead">Physics gives the data, imitation gives the start, RL gives the polish</p>
+  <div class="content">
+    <ul class="lec">
+      <li>Imitation learning = supervised learning on \((o_t,\mathbf a_{t:t+H})\) from successful demonstrations
+        <ul><li>Goal frame (relative motion) and action offsets matter as much as the model</li></ul>
+      </li>
+      <li>Data: about 100 demos for Diffusion Policy; collect 100–200 human demos</li>
+      <li>Model: MSE learns \(\mathbb E[a\mid o]\); <span class="red">Diffusion learns the distribution</span> and handles multimodality
+        <ul><li>Measured: Diffusion 20–68 % vs MLP-BC 9–59 % (25–360 demos)</li></ul>
+      </li>
+      <li>RL from scratch: 0 % after 16M steps — the exploration problem
+        <ul><li>BC → PPO: 54 % → 82 % on seeds 0–99, tied with the expert (87 %) and 3–4 s faster</li></ul>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====================================================================== 25 -->
+<section class="slide" data-title="Try It Yourself">
+  <p class="lead">Exercises with the tutorial code</p>
+  <div class="content">
+    <ul class="lec">
+      <li><b>Human data</b> : collect 50, then 100 demos — does the Diffusion vs MLP-BC gap grow?</li>
+      <li><b>No goal frame</b> : train in world coordinates — how much success is lost?</li>
+      <li><b>Chunks</b> : vary the prediction / execution horizons (1, 4, 8, 16)</li>
+      <li><b>History</b> : one observation frame — which mistakes appear without velocity?</li>
+      <li><b>DAgger</b> : record your corrections in the viewer and retrain</li>
+      <li><b>Robustness</b> : evaluate with friction 0.2 instead of 0.4 — think domain randomization</li>
+      <li><b>RL</b> : put the 0.15 m / 10° test into the reward — does BC+PPO pass the expert?</li>
+    </ul>
+  </div>
+</section>

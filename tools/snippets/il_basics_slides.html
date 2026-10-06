@@ -1,0 +1,587 @@
+<!-- Foundation slides for ADL_2026_ImitationRL_StepByStep.html (physics edition + these).
+     "@after: TITLE" inserts after that slide, "@before: TITLE" before it. -->
+
+<!-- @after: Cover -->
+<section class="slide" data-title="Roadmap: From Newton's Law to PPO">
+  <p class="lead">Five parts — each one uses only what the parts before it built</p>
+  <div class="content">
+    <div class="row" style="margin-top:4px">
+      <div class="blk t-blue" style="width:196px;height:120px"><span class="nm">Basic physics</span><span class="en">Steps 1–7</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-blue" style="width:196px;height:120px"><span class="nm">PushT simulator</span><span class="en">contact code</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-green" style="width:196px;height:120px"><span class="nm">Learning from demos</span><span class="en">Steps 8–11</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-purple" style="width:196px;height:120px"><span class="nm">Basic RL</span><span class="en">Steps 12–18</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:196px;height:120px"><span class="nm">Results</span><span class="en">paired evaluation</span></div>
+    </div>
+    <table class="t sm" style="margin-top:28px">
+      <tr><th style="width:250px">Part</th><th style="width:560px">Key question</th><th>Tutorial file</th></tr>
+      <tr><td>Basic physics</td><td>How does a computer move a rigid body and resolve a collision?</td><td>pusht_mini_sim.py</td></tr>
+      <tr><td>PushT simulator</td><td>Which line of code is which equation?</td><td>pusht_keyboard_sim.py</td></tr>
+      <tr><td>Learning from demos</td><td>How does a network copy a demonstrator?</td><td>pusht_imitation.py</td></tr>
+      <tr><td>Basic RL</td><td>How does an agent improve from reward alone?</td><td>pusht_rl.py</td></tr>
+      <tr><td>Results</td><td>Which policy works best, and why?</td><td>pusht_rl_eval.py</td></tr>
+    </table>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Prerequisites</b> : \(\sum\mathbf F=m\mathbf a\) and impulse–momentum from the dynamics lecture, vectors and matrices, basic Python.</p>
+    </div>
+  </div>
+</section>
+
+<!-- @before: Physics Inside One Control Step -->
+<section class="slide" data-title="Step 1 · Newton's Law in Discrete Time">
+  <p class="lead">A computer cannot integrate continuously — it advances the state in small steps \(\Delta t\)</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:540px">
+        <p class="sub-h">Continuous</p>
+        <div class="eq sm">\[m\frac{d\mathbf v}{dt}=\sum\mathbf F,\qquad \frac{d\mathbf x}{dt}=\mathbf v\]</div>
+        <p class="sub-h">Discrete: semi-implicit Euler</p>
+        <div class="eqbox">
+          <div class="eq sm">\[\mathbf v_{k+1}=\mathbf v_k+\frac{\sum\mathbf F}{m}\,\Delta t\]</div>
+          <div class="eq sm">\[\mathbf x_{k+1}=\mathbf x_k+\mathbf v_{k+1}\,\Delta t\]</div>
+        </div>
+        <p class="def"><b>Semi-implicit</b> : the position uses the <i>new</i> velocity — stable for springs and PD controllers where explicit Euler gains energy.</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">Generic loop · pusht_keyboard_sim.py : substep</p>
+        <p class="code"><span class="cm"># a particle under a force, step by step</span></p>
+        <p class="code">dt = 0.005</p>
+        <p class="code">for k in range(n_steps):</p>
+        <p class="code">    a = force(x, v) / m      <span class="cm"># Newton: a = F / m</span></p>
+        <p class="code">    v = v + a * dt           <span class="cm"># velocity first</span></p>
+        <p class="code">    x = x + v * dt           <span class="cm"># then position</span></p>
+        <p class="code"> </p>
+        <p class="code"><span class="cm"># the same two lines for the PushT pusher</span></p>
+        <p class="code">P.vel += acc * dt</p>
+        <p class="code">P.pos += P.vel * dt</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Step size</b> : PushT uses \(\Delta t=5\) ms. Smaller is more accurate but slower — <span class="red">accuracy vs. speed</span> matters again when RL needs millions of steps.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Step 2 · Friction Slows a Sliding Body">
+  <p class="lead">The floor removes momentum — model it as a force proportional to velocity</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:560px">
+        <p class="sub-h">Viscous floor friction</p>
+        <div class="eq sm">\[\frac{d\mathbf v}{dt}=-c\,\mathbf v\ \ \Rightarrow\ \ \mathbf v(t)=\mathbf v_0\,e^{-ct}\]</div>
+        <div class="eq sm">\[\text{slide distance}=\int_0^\infty v_0e^{-ct}dt=\frac{v_0}{c}\]</div>
+        <p class="sub-h">Exact discrete update — stable for any \(\Delta t\)</p>
+        <div class="eqbox"><div class="eq sm">\[\mathbf v_{k+1}=\mathbf v_k\,e^{-c\Delta t}\qquad\big(\text{Euler: }1-c\Delta t\big)\]</div></div>
+        <table class="t sm">
+          <tr><th style="width:300px">\(v_0=1\) m/s, \(c=3\ \text{s}^{-1}\)</th><th>Value</th></tr>
+          <tr><td>95 % of speed lost</td><td>\(t=\ln 20/3\approx1.0\) s</td></tr>
+          <tr><td>total slide</td><td>\(0.33\) m</td></tr>
+        </table>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_keyboard_sim.py : substep (step 2)</p>
+        <p class="code">self.linear_damping = 3.0      <span class="cm"># c_v [1/s]</span></p>
+        <p class="code">self.angular_damping = 3.0     <span class="cm"># c_w [1/s]</span></p>
+        <p class="code"> </p>
+        <p class="code">T.vel   *= math.exp(-self.linear_damping * dt)</p>
+        <p class="code">T.omega *= math.exp(-self.angular_damping * dt)</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Two friction models</b> : the floor uses this simple viscous law; the pusher–T contact uses <span class="red">Coulomb friction</span> \(\lvert F_t\rvert\le\mu F_n\) (later).</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Step 3 · A Rigid Body: Translation + Rotation">
+  <p class="lead">Three numbers place the T, \((x_G,y_G,\theta)\); three more describe its motion, \((\mathbf v_G,\omega)\)</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:540px">
+        <p class="sub-h">Equations of motion (plane)</p>
+        <div class="eqbox"><div class="eq sm">\[\sum\mathbf F=m\,\mathbf a_G,\qquad \sum M_G=I_G\,\alpha\]</div></div>
+        <p class="sub-h">Where is a body point?</p>
+        <div class="eq sm">\[\mathbf p=\mathbf x_G+R(\theta)\,\mathbf p_{\text{local}},\quad R(\theta)=\begin{pmatrix}\cos\theta&amp;-\sin\theta\\ \sin\theta&amp;\cos\theta\end{pmatrix}\]</div>
+        <p class="sub-h">Rotation is integrated like translation</p>
+        <div class="eq sm">\[\omega_{k+1}=\omega_k+\alpha\Delta t,\qquad \theta_{k+1}=\theta_k+\omega_{k+1}\Delta t\]</div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_keyboard_sim.py · pusht_imitation.py</p>
+        <p class="code">@dataclass</p>
+        <p class="code">class TBody:</p>
+        <p class="code">    pos: np.ndarray      <span class="cm"># x_G, y_G</span></p>
+        <p class="code">    angle: float         <span class="cm"># theta</span></p>
+        <p class="code">    vel: np.ndarray      <span class="cm"># v_G</span></p>
+        <p class="code">    omega: float</p>
+        <p class="code">    mass: float</p>
+        <p class="code">    inertia: float       <span class="cm"># I_G</span></p>
+        <p class="code">    vertices: np.ndarray <span class="cm"># p_local, COM at 0</span></p>
+        <p class="code"> </p>
+        <p class="code">def rotation_matrix(theta):</p>
+        <p class="code">    c, s = np.cos(theta), np.sin(theta)</p>
+        <p class="code">    return np.array([[c, -s], [s, c]])</p>
+        <p class="code"> </p>
+        <p class="code">def T_outline(pos, angle, vertices):</p>
+        <p class="code">    return pos + vertices @ rotation_matrix(angle).T</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>In PushT</b> : apart from floor damping, every push reaches the T as an <span class="red">impulse</span> — so \(\mathbf v_G\) and \(\omega\) change by jumps (Steps 5–6).</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Step 4 · Velocity of a Point on a Rigid Body">
+  <p class="lead">Every point shares \(\mathbf v_G\), plus a rotational part perpendicular to \(\mathbf r\)</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:560px">
+        <div class="eqbox"><div class="eq sm">\[\mathbf v_C=\mathbf v_G+\boldsymbol\omega\times\mathbf r,\qquad \mathbf r=\mathbf x_C-\mathbf x_G\]</div></div>
+        <p class="sub-h">In 2D, \(\boldsymbol\omega=(0,0,\omega)\)</p>
+        <div class="eq sm">\[\boldsymbol\omega\times\mathbf r=(-\omega r_y,\ \omega r_x),\qquad \mathbf r\times\mathbf F=r_xF_y-r_yF_x\]</div>
+        <p class="sub-h">Worked example</p>
+        <p class="def">\(\mathbf v_G=(1,0)\) m/s, \(\omega=2\) rad/s, \(\mathbf r=(0,\,0.5)\) m</p>
+        <div class="eq sm">\[\boldsymbol\omega\times\mathbf r=(-1,\,0)\ \Rightarrow\ \mathbf v_C=(0,\,0)\]</div>
+        <p class="def">That point is momentarily at rest — the <b>instantaneous centre</b> of the dynamics lecture.</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_keyboard_sim.py</p>
+        <p class="code">def omega_cross_r(omega, r):</p>
+        <p class="code">    <span class="cm">"""[0, 0, omega] x [rx, ry, 0]"""</span></p>
+        <p class="code">    return np.array([-omega * r[1], omega * r[0]])</p>
+        <p class="code"> </p>
+        <p class="code">def cross2(a, b):</p>
+        <p class="code">    <span class="cm">"""2D cross product a x b -&gt; scalar (z)"""</span></p>
+        <p class="code">    return float(a[0] * b[1] - a[1] * b[0])</p>
+        <p class="code"> </p>
+        <p class="code"><span class="cm"># used for the contact point:</span></p>
+        <p class="code">v_C = body.vel + omega_cross_r(body.omega, r)</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Why it matters</b> : a collision happens at the contact point, so its speed — <span class="red">not the COM speed</span> — decides whether the bodies approach.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Step 5 · Impulse: A Large Force for a Short Time">
+  <p class="lead">A collision force is huge and brief — integrate it once and change the velocity in a jump</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:560px">
+        <div class="eq sm">\[\mathbf J=\int_{t}^{t+\epsilon}\mathbf F\,dt\]</div>
+        <p class="sub-h">Linear and angular impulse–momentum</p>
+        <div class="eqbox">
+          <div class="eq sm">\[m\mathbf v_G^{+}=m\mathbf v_G^{-}+\mathbf J\]</div>
+          <div class="eq sm">\[I_G\,\omega^{+}=I_G\,\omega^{-}+\mathbf r\times\mathbf J\]</div>
+        </div>
+        <p class="sub-h">Worked example (T: \(m=1,\ I_G=0.434\))</p>
+        <p class="def">\(\mathbf J=(0.5,\,0)\) N·s at \(\mathbf r=(0,\,-0.5)\) m : \(\ \Delta\mathbf v_G=(0.5,\,0)\) m/s, \(\ \mathbf r\times\mathbf J=0.25\ \Rightarrow\ \Delta\omega=0.58\) rad/s</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_keyboard_sim.py : resolve_impulse</p>
+        <p class="code">J = j_n * n</p>
+        <p class="code">body.vel   += J / body.mass</p>
+        <p class="code">body.omega += cross2(r, J) / body.inertia</p>
+        <p class="code"> </p>
+        <p class="code"><span class="cm"># back to a force for display (advance):</span></p>
+        <p class="code">F = self._j_sum / (n * self.physics_dt)</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Why jump</b> : the contact lasts milliseconds, positions barely move, and the force history is unknown — only its integral \(\mathbf J\) matters.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Step 6 · A Collision: How Big Is the Impulse?">
+  <p class="lead">Start with a particle hitting a wall, then let the body rotate</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:580px">
+        <p class="sub-h">Restitution law (normal direction)</p>
+        <div class="eq sm">\[v_n^{+}=-e\,v_n^{-},\qquad 0\le e\le1\]</div>
+        <p class="sub-h">Particle: \(m v_n^{+}=m v_n^{-}+j\)</p>
+        <div class="eq sm">\[j=-(1+e)\,m\,v_n^{-}=-\frac{(1+e)\,v_n^{-}}{1/m}\]</div>
+        <p class="sub-h">Rigid body: rotation absorbs part of it</p>
+        <div class="eqbox"><div class="eq sm">\[j=-\frac{(1+e)\,v_n^{-}}{K_n},\qquad K_n=\frac1m+\frac{(\mathbf r\times\mathbf n)^2}{I}\]</div></div>
+      </div>
+      <div>
+        <table class="t sm">
+          <tr><th style="width:90px">\(e\)</th><th>After impact</th></tr>
+          <tr><td>1</td><td>elastic: full bounce</td></tr>
+          <tr><td>0.5</td><td>half the approach speed</td></tr>
+          <tr><td><b>0</b></td><td><b>plastic: no bounce (PushT)</b></td></tr>
+        </table>
+        <div class="codebox" style="margin-top:22px">
+          <p class="cap code-file">resolve_impulse</p>
+          <p class="code">K_n = 1.0 / body.mass \</p>
+          <p class="code">    + cross2(r, n) ** 2 / body.inertia</p>
+          <p class="code">j_n = -(1.0 + restitution) * v_n / K_n</p>
+        </div>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Same formula</b> : \(1/m\) becomes \(K_n\), the "effective inverse mass" seen at the contact — derived in full a few slides later.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Step 7 · A Simulation Loop with Contacts">
+  <p class="lead">Every rigid-body simulator repeats the same five stages in each time step</p>
+  <div class="content">
+    <div class="row" style="margin-top:4px">
+      <div class="blk t-orange" style="width:196px;height:104px"><span class="nm">Forces</span><span class="en">PD, damping</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-blue" style="width:196px;height:104px"><span class="nm">Integrate</span><span class="en">Steps 1–3</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-blue" style="width:196px;height:104px"><span class="nm">Detect</span><span class="en">who touches whom</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:196px;height:104px"><span class="nm">Impulse</span><span class="en">Steps 4–6</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-green" style="width:196px;height:104px"><span class="nm">Correct</span><span class="en">remove overlap</span></div>
+    </div>
+    <table class="t sm" style="margin-top:28px">
+      <tr><th style="width:200px">Stage</th><th style="width:560px">PushT</th><th>Code</th></tr>
+      <tr><td>Forces</td><td>PD pusher toward the target; floor damping on the T</td><td>substep, steps 1–2</td></tr>
+      <tr><td>Integrate</td><td>semi-implicit Euler for pusher and T</td><td>substep, step 3</td></tr>
+      <tr><td>Detect</td><td>circle vs. T polygon; T corners vs. walls</td><td>circle_vs_T, wall_contacts</td></tr>
+      <tr><td>Impulse</td><td>normal \(j_n\) with \(e=0\), Coulomb friction \(j_t\)</td><td>resolve_impulse</td></tr>
+      <tr><td>Correct</td><td>push the T out of any overlap</td><td>end of resolve_impulse</td></tr>
+    </table>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Next</b> : the following slides open each stage of the PushT code and put the equations beside it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- @before: Collecting Human Demonstrations -->
+<section class="slide" data-title="Step 8 · What Is a Policy?">
+  <p class="lead">A policy maps what the agent observes to what it does — here every 0.1 s</p>
+  <div class="content">
+    <div class="row" style="margin-top:4px">
+      <div class="blk t-blue" style="width:250px;height:104px"><span class="nm">Observation</span><span class="en">\(o_t\) from the state</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-green" style="width:250px;height:104px"><span class="nm">Policy</span><span class="en">\(a_t=\pi(o_t)\)</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:250px;height:104px"><span class="nm">Action</span><span class="en">pusher target</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-purple" style="width:250px;height:104px"><span class="nm">Physics</span><span class="en">next state \(s_{t+1}\)</span></div>
+    </div>
+    <table class="t sm" style="margin-top:28px">
+      <tr><th style="width:250px">Policy</th><th style="width:420px">How it decides</th><th>In this course</th></tr>
+      <tr><td>Human</td><td>eyes + experience</td><td>keyboard recorder</td></tr>
+      <tr><td>Scripted</td><td>hand-written rules from physics</td><td>ScriptedExpert</td></tr>
+      <tr><td>Neural network</td><td>learned weights \(\phi\)</td><td>MLP-BC, Diffusion, PPO actor</td></tr>
+    </table>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def"><b>Closed loop</b> : the policy sees the result of its last action, so it can <span class="red">correct its own mistakes</span>.</p>
+      <p class="def" style="margin:0"><b>Deterministic vs. stochastic</b> : \(a=\pi(o)\) or \(a\sim\pi(a\mid o)\) — the second is needed for multimodal demos and for RL exploration.</p>
+    </div>
+  </div>
+</section>
+
+<!-- @before: Which Model? The Multimodality Problem -->
+<section class="slide" data-title="Step 9 · Supervised Learning in One Slide">
+  <p class="lead">Fit a function to examples \((x,y)\) by following the gradient of a loss</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:520px">
+        <p class="sub-h">Loss on a minibatch of \(B\) examples</p>
+        <div class="eq sm">\[\mathcal L(\phi)=\frac1B\sum_{i=1}^{B}\big\lVert f_\phi(x_i)-y_i\big\rVert^2\]</div>
+        <p class="sub-h">Gradient descent</p>
+        <div class="eqbox"><div class="eq sm">\[\phi\leftarrow\phi-\eta\,\nabla_\phi\mathcal L(\phi)\]</div></div>
+        <p class="def"><b>Minibatch</b> \(B=256\), drawn at random every step. <b>AdamW</b> adapts the step per parameter. <b>Validation set</b> : episodes never trained on.</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_imitation.py : train</p>
+        <p class="code">opt = torch.optim.AdamW(model.parameters(), lr=lr)</p>
+        <p class="code">sched = CosineAnnealingLR(opt, steps)</p>
+        <p class="code">for it in range(1, steps + 1):</p>
+        <p class="code">    idx = torch.randint(0, len(X), (batch,))</p>
+        <p class="code">    loss = model.loss(X[idx], Y[idx])</p>
+        <p class="code">    opt.zero_grad()</p>
+        <p class="code">    loss.backward()          <span class="cm"># gradient</span></p>
+        <p class="code">    opt.step()               <span class="cm"># phi &lt;- phi - lr * ...</span></p>
+        <p class="code">    sched.step()             <span class="cm"># lr decays to 0</span></p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Loss ≠ goal</b> : a low loss on demos does not guarantee success in closed loop — that is why every model here is <span class="red">evaluated by running it</span>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Step 10 · The Network: A Multi-Layer Perceptron">
+  <p class="lead">Stack linear maps and nonlinearities; the weights \(\phi=\{W_l,b_l\}\) are what training changes</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:540px">
+        <div class="eqbox">
+          <div class="eq sm">\[\mathbf h_1=\sigma(W_1\mathbf x+\mathbf b_1)\]</div>
+          <div class="eq sm">\[\mathbf h_{l+1}=\sigma(W_{l+1}\mathbf h_l+\mathbf b_{l+1})\]</div>
+          <div class="eq sm">\[\mathbf y=W_{\text{out}}\mathbf h_L+\mathbf b_{\text{out}}\]</div>
+        </div>
+        <div class="eq sm">\[\text{Mish: }\ \sigma(z)=z\tanh\big(\ln(1+e^{z})\big)\]</div>
+        <table class="t sm">
+          <tr><th style="width:250px">MLP-BC in PushT</th><th>Size</th></tr>
+          <tr><td>input \((o_{t-1},o_t)\)</td><td>2 × 6 = 12</td></tr>
+          <tr><td>hidden layers</td><td>3 × 512</td></tr>
+          <tr><td>output (8 actions × 2)</td><td>16</td></tr>
+          <tr><td>parameters</td><td>540,176</td></tr>
+        </table>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_imitation.py : MLP · BCPolicy</p>
+        <p class="code">class MLP(nn.Module):</p>
+        <p class="code">    def __init__(self, d_in, d_out, width=256, depth=3):</p>
+        <p class="code">        layers, d = [], d_in</p>
+        <p class="code">        for _ in range(depth):</p>
+        <p class="code">            layers += [nn.Linear(d, width), nn.Mish()]</p>
+        <p class="code">            d = width</p>
+        <p class="code">        self.net = nn.Sequential(*layers, nn.Linear(d, d_out))</p>
+        <p class="code"> </p>
+        <p class="code">class BCPolicy(Normalized):</p>
+        <p class="code">    def loss(self, x, y):              <span class="cm"># MSE, normalized</span></p>
+        <p class="code">        return ((self.f(self.nx(x)) - self.ny(y)) ** 2).mean()</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Why a nonlinearity</b> : without \(\sigma\) the whole stack collapses into one linear map — it could not represent "push left of the T here, right of it there".</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Step 11 · Behavior Cloning and Its Weak Spot">
+  <p class="lead">Behavior cloning = supervised learning with \(x=\) observation and \(y=\) expert action</p>
+  <div class="content">
+    <div class="eqbox"><div class="eq sm">\[\min_\phi\ \mathbb E_{(o,a^{*})\sim\mathcal D_{\text{expert}}}\big\lVert\pi_\phi(o)-a^{*}\big\rVert^2\]</div></div>
+    <div class="two" style="margin-top:6px">
+      <div>
+        <p class="sub-h">Covariate shift</p>
+        <p class="def">Training states come from the <b>expert</b>; at test time states come from the <b>policy itself</b>. One small error leads to a state the demos never showed, where the next error is larger.</p>
+        <div class="eq sm">\[\text{mistakes over }T\text{ steps: BC}\sim T^2\epsilon,\quad \text{DAgger}\sim T\epsilon\]</div>
+        <p class="cap">Ross &amp; Bagnell (2010); Ross, Gordon &amp; Bagnell (2011)</p>
+      </div>
+      <div>
+        <p class="sub-h">Two more problems</p>
+        <p class="def"><b>Multimodality</b> : the MSE optimum is the mean of the demonstrated actions (next slides).</p>
+        <p class="def"><b>No recovery data</b> : we save only successful demos, so the policy never sees how to fix a bad push.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Remedies in this course</b> : action chunks, Diffusion Policy for multimodality — and <span class="red">RL fine-tuning</span>, which learns from the policy's own states.</p>
+    </div>
+  </div>
+</section>
+
+<!-- @before: From Imitation to Reinforcement Learning -->
+<section class="slide" data-title="Step 12 · The RL Problem: Learning from Reward">
+  <p class="lead">No teacher — the agent acts, and the environment answers with a new state and a reward</p>
+  <div class="content">
+    <div class="row" style="margin-top:4px">
+      <div class="blk t-green" style="width:300px;height:104px"><span class="nm">Agent</span><span class="en">policy \(\pi_\phi(a\mid s)\)</span></div>
+      <div class="arw" style="width:90px;margin-right:18px"></div>
+      <div class="blk t-blue" style="width:300px;height:104px"><span class="nm">Environment</span><span class="en">the simulator (Steps 1–7)</span></div>
+      <div class="arw" style="width:90px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:300px;height:104px"><span class="nm">Feedback</span><span class="en">\(s_{t+1},\ r_t\)</span></div>
+    </div>
+    <p class="sub-h" style="margin-top:24px">Markov decision process \((\mathcal S,\mathcal A,P,r,\gamma)\) for PushT</p>
+    <table class="t sm">
+      <tr><th style="width:280px">Element</th><th>PushT</th></tr>
+      <tr><td>state \(s\)</td><td>pusher, T and goal poses (+ velocities)</td></tr>
+      <tr><td>action \(a\)</td><td>where to move the pusher target</td></tr>
+      <tr><td>transition \(P(s'\mid s,a)\)</td><td>0.1 s of physics — deterministic here</td></tr>
+      <tr><td>reward \(r\)</td><td>progress toward the goal, bonus on success</td></tr>
+      <tr><td>episode</td><td>until success or 300 steps (30 s)</td></tr>
+    </table>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Markov property</b> : the next state depends only on \((s,a)\) — that is why <span class="red">velocities belong in the state</span>, or two frames in the observation.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Step 13 · Return: Adding Up Future Rewards">
+  <p class="lead">The agent maximizes the discounted sum of rewards, not the next reward</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:600px">
+        <div class="eq sm">\[G_t=r_t+\gamma r_{t+1}+\gamma^2r_{t+2}+\dots=\sum_{k\ge0}\gamma^k r_{t+k}\]</div>
+        <div class="eq sm">\[G_t=r_t+\gamma\,G_{t+1}\qquad(\text{recursive})\]</div>
+        <div class="eqbox"><div class="eq sm">\[J(\phi)=\mathbb E_{\tau\sim\pi_\phi}\big[G_0\big]\ \to\ \max_\phi\]</div></div>
+      </div>
+      <div>
+        <table class="t sm">
+          <tr><th style="width:250px">\(\gamma=0.99\)</th><th>Value</th></tr>
+          <tr><td>effective horizon \(1/(1-\gamma)\)</td><td>100 steps = 10 s</td></tr>
+          <tr><td>bonus 10 after 100 steps</td><td>\(10\cdot0.99^{100}=3.7\)</td></tr>
+          <tr><td>bonus 10 after 50 steps</td><td>\(10\cdot0.99^{50}=6.1\)</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def"><b>Discounting</b> : a success that comes sooner is worth more — together with the −0.01 time penalty, this is why RL learns to <span class="red">finish faster</span> than the expert.</p>
+      <p class="def" style="margin:0"><b>\(\tau\)</b> : one trajectory \((s_0,a_0,r_0,s_1,\dots)\) produced by running the policy.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Step 14 · Value Function and Bellman Equation">
+  <p class="lead">How good is a state? The return the policy can expect from there</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:560px">
+        <div class="eq sm">\[V^{\pi}(s)=\mathbb E_\pi\big[G_t\mid s_t=s\big]\]</div>
+        <p class="sub-h">Bellman equation (from \(G_t=r_t+\gamma G_{t+1}\))</p>
+        <div class="eq sm">\[V^{\pi}(s)=\mathbb E\big[r_t+\gamma V^{\pi}(s_{t+1})\mid s_t=s\big]\]</div>
+        <p class="sub-h">Temporal-difference (TD) error</p>
+        <div class="eqbox"><div class="eq sm">\[\delta_t=r_t+\gamma V(s_{t+1})-V(s_t)\]</div></div>
+        <p class="def">\(\delta_t&gt;0\) : the step went <b>better than the critic expected</b>.</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_rl.py : critic</p>
+        <p class="code"><span class="cm"># the critic V_psi(s) is another network</span></p>
+        <p class="code"><span class="cm"># trained by regression on the returns:</span></p>
+        <p class="code">lv = ((model.value(Ob[idx]) - RET[idx]) ** 2).mean()</p>
+        <p class="code"> </p>
+        <p class="code"><span class="cm"># TD error inside GAE</span></p>
+        <p class="code">delta = R[t] + gamma * nv * (1 - DONE[t]) - V[t]</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Episode end</b> : after success \((1-d_t)=0\) — no future value. A time-out is not an end, so \(V(s_T)\) is added back (bootstrap).</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Step 15 · Advantage and GAE">
+  <p class="lead">Was this action better or worse than what the policy usually does in this state?</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:560px">
+        <div class="eq sm">\[A^{\pi}(s,a)=Q^{\pi}(s,a)-V^{\pi}(s),\qquad \hat A_t^{(1)}=\delta_t\]</div>
+        <p class="sub-h">Generalized Advantage Estimation</p>
+        <div class="eqbox"><div class="eq sm">\[\hat A_t=\sum_{l\ge0}(\gamma\lambda)^l\,\delta_{t+l}=\delta_t+\gamma\lambda\,\hat A_{t+1}\]</div></div>
+        <table class="t sm">
+          <tr><th style="width:110px">\(\lambda\)</th><th>Estimate</th></tr>
+          <tr><td>0</td><td>one-step TD: low variance, biased by the critic</td></tr>
+          <tr><td>1</td><td>full return − \(V\): unbiased, noisy</td></tr>
+          <tr><td><b>0.95</b></td><td>the usual compromise (used here)</td></tr>
+        </table>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_rl.py : GAE</p>
+        <p class="code">for t in reversed(range(n_steps)):</p>
+        <p class="code">    nv = v_next if t == n_steps - 1 else V[t + 1]</p>
+        <p class="code">    delta = R[t] + gamma * nv * (1 - DONE[t]) - V[t]</p>
+        <p class="code">    g = delta + gamma * lam * (1 - DONE[t]) * g</p>
+        <p class="code">    adv[t] = g</p>
+        <p class="code">RET = ADV + torch.cat(V)       <span class="cm"># critic target</span></p>
+        <p class="code">ADV = (ADV - ADV.mean()) / (ADV.std() + 1e-8)</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Step 16 · Policy Gradient">
+  <p class="lead">Make better-than-usual actions more likely, and worse-than-usual ones less likely</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:580px">
+        <p class="sub-h">Gaussian policy for continuous actions</p>
+        <div class="eq sm">\[\pi_\phi(a\mid s)=\mathcal N\big(\mu_\phi(s),\sigma^2\big)\]</div>
+        <div class="eq sm">\[\log\pi_\phi(a\mid s)=-\frac{\lVert a-\mu_\phi(s)\rVert^2}{2\sigma^2}+\text{const}\]</div>
+        <p class="sub-h">Policy-gradient theorem</p>
+        <div class="eqbox"><div class="eq sm">\[\nabla_\phi J=\mathbb E\big[\nabla_\phi\log\pi_\phi(a_t\mid s_t)\,\hat A_t\big]\]</div></div>
+        <p class="def">\(\hat A&gt;0\) : move \(\mu_\phi(s)\) <b>toward</b> the tried action. \(\hat A&lt;0\) : move it <b>away</b>.</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_rl.py</p>
+        <p class="code">def policy_dist(model, o):</p>
+        <p class="code">    return torch.distributions.Normal(</p>
+        <p class="code">        model.mean(o), model.log_std.exp())</p>
+        <p class="code"> </p>
+        <p class="code"><span class="cm"># training: sample -&gt; exploration</span></p>
+        <p class="code"><span class="cm"># evaluation: use model.mean(o)</span></p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Compare with BC</b> : BC pulls \(\mu\) toward the <i>expert's</i> action; policy gradient pulls it toward the <i>agent's own</i> actions, <span class="red">weighted by how well they worked</span>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Step 17 · From Policy Gradient to PPO">
+  <p class="lead">Reuse each batch for several updates — but never move the policy too far at once</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:540px">
+        <div class="eq sm">\[\rho=\frac{\pi_\phi(a\mid s)}{\pi_{\text{old}}(a\mid s)},\qquad L^{\text{PG}}=-\mathbb E[\rho\hat A]\]</div>
+        <p class="def">At \(\rho=1\) its gradient is exactly the policy gradient of Step 16.</p>
+        <div class="eqbox"><div class="eq sm">\[L^{\text{clip}}=-\mathbb E\big[\min\big(\rho\hat A,\ \mathrm{clip}(\rho,1-\varepsilon,1+\varepsilon)\hat A\big)\big]\]</div></div>
+        <table class="t sm">
+          <tr><th style="width:150px">Case</th><th>Effect of the clip (\(\varepsilon=0.2\))</th></tr>
+          <tr><td>\(\hat A&gt;0\)</td><td>stop raising the probability once \(\rho&gt;1.2\)</td></tr>
+          <tr><td>\(\hat A&lt;0\)</td><td>stop lowering it once \(\rho&lt;0.8\)</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="blk t-blue" style="width:100%;height:76px"><span class="nm">1. Collect</span><span class="en">64 envs × 128 steps</span></div>
+        <div class="blk t-green" style="width:100%;height:76px;margin-top:12px"><span class="nm">2. GAE</span><span class="en">\(\hat A_t\), returns</span></div>
+        <div class="blk t-orange" style="width:100%;height:76px;margin-top:12px"><span class="nm">3. Update × 10 epochs</span><span class="en">actor \(L^{\text{clip}}\) + critic MSE</span></div>
+        <div class="blk t-purple" style="width:100%;height:76px;margin-top:12px"><span class="nm">4. Repeat</span><span class="en">\(\pi_{\text{old}}\leftarrow\pi_\phi\)</span></div>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Why the clip</b> : one bad, too-large update can destroy a policy that works — critical when we <span class="red">start from the BC policy</span>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Step 18 · Exploration and Reward Shaping">
+  <p class="lead">RL can only improve what it has tried — success has to happen at least sometimes</p>
+  <div class="content">
+    <div class="two">
+      <div>
+        <p class="sub-h">Sparse vs. shaped reward</p>
+        <p class="def"><b>Sparse</b> : +10 only at success. A random pusher practically never aligns the T within 0.15 m and 10° → no learning signal.</p>
+        <p class="def"><b>Shaped</b> : \(10\,(c(s_t)-c(s_{t+1}))\) every step. Potential-based, so the best policy is unchanged (Ng et al., 1999).</p>
+      </div>
+      <div>
+        <p class="sub-h">What we measured</p>
+        <table class="t sm">
+          <tr><th style="width:150px">Start</th><th style="width:150px">Before</th><th>After PPO</th></tr>
+          <tr><td>random</td><td>0 %</td><td>0 % (16.4M steps)</td></tr>
+          <tr><td>BC policy</td><td>42 %</td><td>80–82 % (6M)</td></tr>
+        </table>
+        <p class="cap">From scratch the return rose −14 → −2.4: the T moved closer, but the final alignment was never discovered.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Key idea</b> : demonstrations solve exploration; RL then optimizes the reward. <span class="red">Imitation and RL are complementary</span>, not competitors.</p>
+    </div>
+  </div>
+</section>
+
+<!-- @before: Summary -->
+<section class="slide" data-title="The Whole Chain, Step by Step">
+  <p class="lead">From \(\sum\mathbf F=m\mathbf a\) to a policy that beats the expert's speed</p>
+  <div class="content">
+    <table class="t sm">
+      <tr><th style="width:130px">Steps</th><th style="width:560px">Idea</th><th>Where in the code</th></tr>
+      <tr><td>1–3</td><td>Newton in discrete time, damping, rigid-body pose</td><td>substep, TBody</td></tr>
+      <tr><td>4–6</td><td>contact-point velocity, impulse, restitution, \(K_n\)</td><td>resolve_impulse</td></tr>
+      <tr><td>7</td><td>simulation loop with contact detection</td><td>circle_vs_T, wall_contacts</td></tr>
+      <tr><td>8–11</td><td>policy, supervised learning, MLP, behavior cloning</td><td>BCPolicy, train</td></tr>
+      <tr><td>—</td><td>multimodality → Diffusion Policy</td><td>DiffusionPolicy</td></tr>
+      <tr><td>12–15</td><td>MDP, return, value, advantage (GAE)</td><td>pusht_rl.py: reward, GAE</td></tr>
+      <tr><td>16–18</td><td>policy gradient, PPO, exploration</td><td>pusht_rl.py: PPO loop</td></tr>
+    </table>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Result</b> : scripted 87 % · BC 54 % · BC+PPO 82 % on the same 100 unseen tasks — <span class="red">tied with the expert in success, 3–4 s faster</span>.</p>
+    </div>
+  </div>
+</section>

@@ -370,10 +370,14 @@ def load_policy(path):
 # actor learning rate도 $3\times10^{-5}$ 로 작게 둡니다 (A는 $3\times10^{-4}$).
 
 # %%
-def train_ppo(kind, total_steps, out_dir, actor_lr, critic_warmup=0, save_every=25, bc_ckpt=None):
+def train_ppo(kind, total_steps, out_dir, actor_lr, critic_warmup=0, save_every=25, bc_ckpt=None,
+              resume=None, step_offset=0, seed=0):
+    """resume = checkpoint of this kind to continue from; step_offset = its step count (for file names)."""
     os.makedirs(out_dir, exist_ok=True)
-    envs = ParallelEnvs(kind)
-    if kind == "scratch":
+    envs = ParallelEnvs(kind, seed=seed)
+    if resume is not None:
+        model = load_policy(resume).train()
+    elif kind == "scratch":
         model = ScratchActorCritic()
     else:
         model = BCActorCritic(torch.load(bc_ckpt, map_location="cpu")["model"])
@@ -434,12 +438,13 @@ def train_ppo(kind, total_steps, out_dir, actor_lr, critic_warmup=0, save_every=
         it += 1
         if it % 5 == 0:
             rate = np.mean(ep_success[-300:]) if ep_success else 0.0
-            line = (f"steps {steps / 1e6:6.2f}M  episodes {len(ep_success):6d}  success(last 300) {rate:.2f}  "
+            line = (f"steps {(steps + step_offset) / 1e6:6.2f}M  episodes {len(ep_success):6d}  success(last 300) {rate:.2f}  "
                     f"std {model.log_std.exp().detach().numpy().round(3)}  {(time.time() - t0) / 60:.1f} min")
             print(line, flush=True)
             log.write(line + "\n"); log.flush()
         if it % save_every == 0:
-            torch.save(model.state_dict(), os.path.join(out_dir, f"{prefix}_{steps // 1000}k.pt"))
+            torch.save(model.state_dict(), os.path.join(out_dir, f"{prefix}_{(steps + step_offset) // 1000}k.pt"))
+    torch.save(model.state_dict(), os.path.join(out_dir, f"{prefix}_{(steps + step_offset) // 1000}k.pt"))
     torch.save(model.state_dict(), os.path.join(out_dir, f"{prefix}_final.pt"))
     envs.close()
     return model
@@ -481,6 +486,51 @@ def evaluate(make_agent, n=50, label=""):
     return float(np.mean(ok))
 
 
+_EVAL_AGENTS = {}
+
+
+def _eval_one(job):
+    label, seed = job
+    torch.set_num_threads(1)
+    env, agent = _EVAL_AGENTS[label]
+    S, A, ok = run_episode(env, agent, seed)
+    return label, seed, ok, len(S)
+
+
+def evaluate_parallel(policies, n=200, procs=16):
+    """policies: {label: "script" or checkpoint path}.  Unseen seeds 0..n-1, `procs` processes.
+    Returns {label: (success (n,), steps (n,))}; steps = control steps (0.1 s) until success or time-out."""
+    _EVAL_AGENTS.clear()
+    for label, spec in policies.items():
+        env = PushTEnv(max_steps=MAX_STEPS)
+        _EVAL_AGENTS[label] = (env, ScriptedExpert(env) if spec == "script" else RLAgent(env, load_policy(spec)))
+    jobs = [(label, seed) for label in policies for seed in range(n)]
+    ctx = mp.get_context("fork")
+    with ctx.Pool(procs) as pool:                        # agents are inherited by the forked workers
+        out = pool.map(_eval_one, jobs, chunksize=4)
+    res = {}
+    for label in policies:
+        rows = sorted((seed, ok, st) for lb, seed, ok, st in out if lb == label)
+        res[label] = (np.array([r[1] for r in rows]), np.array([r[2] for r in rows]))
+    return res
+
+
+def print_eval(res, n):
+    both = np.all([ok for ok, _ in res.values() if ok.any()], axis=0)   # tasks every (ever-successful) policy solved
+    print(f"{n} unseen tasks; time = seconds until success (0.1 s per step)")
+    print(f"{'policy':34s} {'success':>8s} {'±1 s.e.':>8s} {'mean time':>10s} {'median':>7s} "
+          f"{'time on the ' + str(both.sum()) + ' tasks all solved':>32s}")
+    for label, (ok, st) in res.items():
+        p = ok.mean()
+        se = math.sqrt(p * (1 - p) / len(ok))
+        t_ok = st[ok] / 10
+        t_both = st[both] / 10
+        f = lambda x: f"{x:.1f}s" if np.isfinite(x) else "-"
+        print(f"{label:34s} {p * 100:7.1f}% {se * 100:7.1f}% "
+              f"{f(t_ok.mean() if ok.any() else np.nan):>10s} {f(np.median(t_ok) if ok.any() else np.nan):>7s} "
+              f"{f(t_both.mean() if ok.any() and both.any() else np.nan):>32s}")
+
+
 def checkpoints(folder, prefix):
     """Sorted [(steps, path)] of the checkpoints in `folder` (final = largest)."""
     out = []
@@ -510,11 +560,20 @@ if __name__ == "__main__" and len(sys.argv) > 1:
     elif mode == "bc":
         assert os.path.exists(BC_CKPT), f"train MLP-BC first (pusht_imitation.py): {BC_CKPT}"
         train_ppo("bc", 6e6, os.path.join(RL_DIR, "bc_ppo"), actor_lr=3e-5, critic_warmup=10, bc_ckpt=BC_CKPT)
+    elif mode == "bc_more":                          # continue B from its newest numbered checkpoint
+        more = float(sys.argv[2]) if len(sys.argv) > 2 else 6e6
+        ck = [c for c in checkpoints(os.path.join(RL_DIR, "bc_ppo"), "bcppo") if c[0] < 10**9]
+        k, path = ck[-1]
+        print(f"resume from {os.path.basename(path)} for {more / 1e6:.1f}M more steps")
+        train_ppo("bc", more, os.path.join(RL_DIR, "bc_ppo"), actor_lr=3e-5, critic_warmup=3,
+                  resume=path, step_offset=k * 1000, seed=int(k))
     elif mode == "eval":
-        torch.set_num_threads(4)
-        evaluate(lambda e: ScriptedExpert(e), label="script expert")
-        for folder, prefix, name in (("scratch", "ppo_scratch", "RL from scratch"), ("bc_ppo", "bcppo", "BC -> RL")):
-            ck = checkpoints(os.path.join(RL_DIR, folder), prefix)
-            for k, path in ([ck[0], ck[len(ck) // 2], ck[-1]] if len(ck) >= 3 else ck):
-                m = load_policy(path)
-                evaluate(lambda e, m=m: RLAgent(e, m), label=f"{name} {os.path.basename(path)}")
+        n = int(sys.argv[2]) if len(sys.argv) > 2 else 200
+        pols = {"script expert": "script"}
+        for folder, prefix, name in (("scratch", "ppo_scratch", "RL scratch"), ("bc_ppo", "bcppo", "BC->RL")):
+            ck = [c for c in checkpoints(os.path.join(RL_DIR, folder), prefix) if c[0] < 10**9]
+            picks = ck if len(sys.argv) > 3 and sys.argv[3] == "all" else \
+                [ck[0], ck[len(ck) // 2], ck[-1]] if len(ck) >= 3 else ck
+            for k, path in picks:
+                pols[f"{name} {k / 1000:.2f}M steps"] = path
+        print_eval(evaluate_parallel(pols, n), n)

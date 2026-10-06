@@ -1,0 +1,1389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADL 2026 · Imitation Learning and RL on PushT — Physics and Code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<style>
+/* ==========================================================================
+   AMSL Lecture Design System — tokens (copied from tokens/*.css)
+   ========================================================================== */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Arimo:ital,wght@0,400;0,700;1,400;1,700&display=swap");
+@font-face{font-family:"Pretendard";font-style:normal;font-weight:600;font-display:swap;src:url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-SemiBold.woff2") format("woff2")}
+@font-face{font-family:"Pretendard";font-style:normal;font-weight:900;font-display:swap;src:url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-Black.woff2") format("woff2")}
+
+:root{
+  --navy-900:#203864; --navy-700:#2774B8; --navy-400:#5B9BD5;
+  --navy-200:#B4C3D6; --navy-050:#D9EEFC;
+  --ink-1000:#000000; --ink-900:#111111; --ink-600:#404040; --ink-300:#A5A5A5;
+  --paper-200:#E7E6E6; --paper-000:#FFFFFF;
+  --dia-blue-fill:#D9EEFC;   --dia-blue-line:#2774B8;
+  --dia-green-fill:#E4F4E4;  --dia-green-line:#3D8C54;
+  --dia-orange-fill:#FFEBC9; --dia-orange-line:#E97820;
+  --dia-purple-fill:#EADCF5; --dia-purple-line:#6D237C;
+  --emphasis-red:#FF0000;
+  --font-display:"Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;
+  --font-core:Arial,"Arimo","Malgun Gothic",Helvetica,sans-serif;
+  --font-hangul:"Noto Sans KR","Malgun Gothic",sans-serif;
+  --font-mono:Consolas,"Courier New",monospace;
+  --type-slide-title:37.33px; --type-lead:26.67px;
+  --type-body-1:32px; --type-body-2:26.67px; --type-body-3:24px;
+  --type-diagram-ko:26.67px; --type-diagram-en:21.33px;
+  --type-footer:16px; --type-slide-number:24px;
+  --radius-block:14px; --stroke-diagram:4px; --stroke-arrow:8px;
+}
+
+/* ========================================================== viewer chrome */
+html,body{margin:0;height:100%;background:var(--paper-200);font-family:var(--font-core)}
+#viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#deck{width:1280px;height:720px;transform-origin:center center;position:relative}
+.slide{position:absolute;inset:0;width:1280px;height:720px;background:var(--paper-000);overflow:hidden;display:none}
+.slide.is-active{display:block}
+#hud{position:fixed;right:10px;top:6px;z-index:40;font:400 13px var(--font-core);color:var(--ink-600);
+     background:rgba(255,255,255,.9);padding:3px 8px;border:1px solid var(--navy-200)}
+#hud b{color:var(--navy-900)}
+#help{position:fixed;left:10px;top:6px;z-index:40;font:400 12.5px var(--font-core);color:var(--ink-600);
+      background:rgba(255,255,255,.9);padding:3px 8px;border:1px solid var(--navy-200);transition:opacity .4s}
+#help.faded{opacity:0;pointer-events:none}
+
+body.overview #viewport{align-items:flex-start;justify-content:flex-start;overflow:auto;padding:18px}
+body.overview #deck{width:auto;height:auto;transform:none!important;display:grid;
+     grid-template-columns:repeat(auto-fill,320px);gap:14px}
+body.overview .slide{position:relative;display:block;inset:auto;
+     transform:scale(.25);transform-origin:top left;width:1280px;height:720px;
+     margin:0 -960px -540px 0;outline:1px solid var(--navy-200);cursor:pointer}
+body.overview .slide.is-active{outline:3px solid var(--navy-900)}
+
+/* ==================================================== content-slide chrome */
+.bar{position:absolute;left:20.9px;top:13.5px;width:9.8px;height:63.4px;background:var(--navy-900)}
+.slide > h2{position:absolute;left:46px;top:13.5px;right:88px;height:63.4px;margin:0;display:flex;
+     align-items:center;font:700 var(--type-slide-title)/.9 var(--font-core);
+     color:var(--navy-900);letter-spacing:-.01em}
+.mark{position:absolute;left:1198.7px;top:14.4px;width:62px;height:62px;opacity:.5;
+     filter:grayscale(1) brightness(1.1) sepia(1) hue-rotate(178deg) saturate(3.2)}
+.foot{position:absolute;left:0;right:0;top:694.2px;height:26.5px;background:var(--navy-900)}
+.foot-num-band{position:absolute;right:0;top:694.2px;width:331.6px;height:26.5px;background:var(--navy-200)}
+.foot-credit{position:absolute;left:8px;top:694.2px;height:26.5px;display:flex;align-items:center;
+     font:italic 700 var(--type-footer)/1 var(--font-core);color:#fff}
+.foot-num{position:absolute;left:1215.9px;width:63.2px;top:694.2px;height:26.5px;display:flex;
+     align-items:center;justify-content:center;
+     font:700 var(--type-slide-number)/1 var(--font-core);color:var(--ink-600)}
+
+.lead{position:absolute;left:48.4px;top:98px;right:40px;margin:0;
+     font:700 var(--type-lead)/1.15 var(--font-core);color:var(--ink-1000)}
+.content{position:absolute;left:23px;right:23px;top:150px;bottom:30px}
+.content.nolead{top:92px}
+
+/* ======================================================== body type */
+.body{font:400 var(--type-body-3)/1.34 var(--font-core);color:var(--ink-1000)}
+ul.lec{list-style:none;margin:0;padding:0}
+ul.lec > li{position:relative;padding-left:24px;margin-bottom:14px;
+     font:400 var(--type-body-2)/1.25 var(--font-core);color:var(--ink-1000)}
+ul.lec > li::before{content:"\2022";position:absolute;left:2px;color:var(--ink-1000)}
+ul.lec ul{list-style:none;margin:6px 0 0;padding:0}
+ul.lec ul > li{position:relative;padding-left:28px;margin-bottom:5px;
+     font:400 var(--type-body-3)/1.25 var(--font-core)}
+ul.lec ul > li::before{content:"\2192";position:absolute;left:2px;font-family:var(--font-core)}
+p.def{margin:0 0 14px;font:400 var(--type-body-3)/1.34 var(--font-core);color:var(--ink-1000)}
+p.def > b{font-style:italic;font-weight:700}
+.red{color:var(--emphasis-red)}
+.dim{color:var(--ink-600)}
+.cap{margin:8px 0 0;font:400 19px/1.25 var(--font-core);color:var(--ink-600)}
+.sub-h{margin:0 0 8px;font:700 22px/1.2 var(--font-core);color:var(--navy-900)}
+
+/* equations (KaTeX) — navy keyline on the left marks the key result */
+.katex{font-size:1.1em;color:inherit}
+.eq{margin:0 0 8px;font:400 29px/1.45 var(--font-core);color:var(--ink-1000)}
+.eq.sm{font-size:25px}
+.eq .katex-display{margin:.2em 0;text-align:left}
+.eq .katex-display > .katex{text-align:left}
+.eqbox{border-left:var(--stroke-diagram) solid var(--navy-900);padding:6px 0 6px 20px;margin:0 0 16px}
+.eqbox .eq:last-child{margin-bottom:0}
+.eqlabel{display:inline-block;min-width:190px;font:700 21px/1 var(--font-core);color:var(--navy-900)}
+
+/* tables — hairline only, no fills */
+table.t{border-collapse:collapse;width:100%;font:400 21px/1.28 var(--font-core);color:var(--ink-1000)}
+table.t th{text-align:left;font-weight:700;color:var(--navy-900);padding:7px 14px 7px 0;
+     border-bottom:2px solid var(--navy-900);vertical-align:bottom}
+table.t td{padding:8px 14px 8px 0;border-bottom:1px solid var(--paper-200);vertical-align:middle}
+table.t.sm{font-size:19.5px}
+table.t tr:last-child td{border-bottom:none}
+
+/* layout helpers */
+.two{display:flex;gap:34px;align-items:flex-start}
+.two > *{flex:1;min-width:0}
+.fig{position:relative}
+.fig svg{display:block}
+.flab{position:absolute;font:400 22px/1 var(--font-core);color:var(--ink-900);white-space:nowrap}
+
+/* diagram blocks */
+.row{display:flex;align-items:center;justify-content:center}
+.blk{box-sizing:border-box;border-radius:var(--radius-block);border:var(--stroke-diagram) solid;
+     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+     padding:0 12px;text-align:center}
+.blk .nm{font:700 var(--type-diagram-ko)/1.05 var(--font-core);color:var(--ink-900)}
+.blk .en{font:400 var(--type-diagram-en)/1.15 var(--font-core);color:var(--ink-900)}
+.blk .sub{font:400 19px/1.2 var(--font-core);color:var(--ink-600)}
+.t-blue{background:var(--dia-blue-fill);border-color:var(--dia-blue-line)}
+.t-green{background:var(--dia-green-fill);border-color:var(--dia-green-line)}
+.t-orange{background:var(--dia-orange-fill);border-color:var(--dia-orange-line)}
+.t-purple{background:var(--dia-purple-fill);border-color:var(--dia-purple-line)}
+.abs{position:absolute}
+.arw{height:var(--stroke-arrow);background:var(--ink-900);position:relative;flex:0 0 auto}
+.arw::after{content:"";position:absolute;right:-16px;top:-9px;
+     border-left:17px solid var(--ink-900);border-top:13px solid transparent;border-bottom:13px solid transparent}
+.vline{width:var(--stroke-arrow);background:var(--ink-900);position:absolute}
+.hline{height:var(--stroke-arrow);background:var(--ink-900);position:absolute}
+.tri-d{position:absolute;width:0;height:0;border-top:17px solid var(--ink-900);
+     border-left:13px solid transparent;border-right:13px solid transparent}
+.op-oval{box-sizing:border-box;width:58px;height:58px;border:2px solid var(--ink-900);border-radius:50%;
+     display:flex;align-items:center;justify-content:center;font:400 34px/1 var(--font-core);color:var(--ink-900);
+     flex:0 0 auto}
+.op-txt{font:400 40px/1 var(--font-core);color:var(--ink-900);padding:0 16px}
+
+/* equation grid (slide: ten equations) */
+.eqgrid{display:grid;grid-template-columns:.9fr 1.1fr;column-gap:40px;row-gap:0}
+.eqgrid > div{display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid var(--paper-200)}
+.eqgrid .n{flex:0 0 34px;font:700 22px/1 var(--font-core);color:var(--navy-900)}
+.eqgrid .k{flex:0 0 180px;font:400 19px/1.2 var(--font-core);color:var(--ink-600)}
+.eqgrid .m{font-size:22px;white-space:nowrap}
+
+/* textbook figures — placed at natural aspect, source named underneath */
+.tfig{display:flex;flex-direction:column;align-items:center}
+.tfig img{display:block;object-fit:contain}
+.tfig .src{margin-top:6px;font:400 16px/1.2 var(--font-core);color:var(--ink-600);text-align:center}
+
+p.code{margin:0 0 6px;font:400 19px/1.3 var(--font-mono);color:var(--navy-900);border-left:var(--stroke-diagram) solid var(--navy-200);padding:2px 0 2px 12px}
+.codebox{border-left:var(--stroke-diagram) solid var(--navy-200);padding:0 0 4px 14px;min-width:0}
+.codebox p.code{border:none;padding:0;margin:0;white-space:pre;font-size:15.5px;line-height:1.36;color:var(--ink-900)}
+.codebox p.code-file{margin:0 0 8px;font:700 16px/1.2 var(--font-core);color:var(--navy-700)}
+.code .cm{color:var(--dia-green-line)}
+
+/* ======================================================================= cover */
+.slide.cover{background:var(--navy-900)}
+.cover .rule{position:absolute;left:35.5px;width:1209px;height:8.25px;background:rgba(255,255,255,.6)}
+.cover .rule.top{top:59.1px}
+.cover .rule.bot{top:663.7px}
+.cover .mark-lg{position:absolute;left:1075.8px;top:460.9px;width:138px;height:137.6px;opacity:.5;
+     filter:grayscale(1) brightness(2.4) contrast(1.6)}
+.cover .title-box{position:absolute;left:36px;top:117.8px;width:1209px;height:228.8px;
+     display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+.cover h1{margin:0;text-align:center;font:900 52px/1.02 var(--font-display);color:#fff}
+.cover .meta{position:absolute;left:35.5px;top:419px;width:960px;display:flex;flex-direction:column;
+     gap:2px;font:600 32px/1.1 var(--font-display);color:#fff}
+.cover .sub{position:absolute;left:35.5px;top:600px;width:1000px;
+     font:400 21px/1.35 var(--font-core);color:rgba(255,255,255,.75)}
+
+/* ======================================================================= print */
+@page{size:1280px 720px;margin:0}
+@media print{
+  html,body{background:#fff;height:auto}
+  #viewport{position:static;display:block;overflow:visible}
+  #deck{transform:none!important;width:1280px;height:auto}
+  .slide{position:relative;display:block!important;inset:auto;page-break-after:always;break-after:page}
+  #hud,#help{display:none}
+}
+</style>
+</head>
+<body>
+<div id="viewport"><div id="deck">
+
+<!-- ====================================================================== 01 -->
+<section class="slide cover" data-title="Cover">
+  <div class="rule top"></div><div class="rule bot"></div>
+  <img class="mark-lg" src="assets/logo/smwu-logo-mark-mono.png" alt="">
+  <div class="title-box">
+    <h1>Learning to Push:<br>Imitation Learning and RL on PushT</h1>
+  </div>
+  <div class="meta"><div>Department of Mechanical Engineering</div><div>2026.10.07 (Wed)</div><div>Joo Yong Sim</div></div>
+  <div class="sub">Extended edition: contact physics derived and compared line by line with the tutorial code</div>
+</section>
+
+<!-- ====================================================================== 02 -->
+<section class="slide" data-title="Lecture Goals: From Physics to Policy">
+  <p class="lead">The PushT simulator from the dynamics lecture becomes a training ground</p>
+  <div class="content">
+    <div class="row" style="margin-top:10px">
+      <div class="blk t-blue" style="width:250px;height:124px"><span class="nm">Physics</span><span class="en">impulse · friction · walls</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:250px;height:124px"><span class="nm">Demonstrations</span><span class="en">human or scripted expert</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-green" style="width:250px;height:124px"><span class="nm">Imitation</span><span class="en">MLP-BC · Diffusion Policy</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-purple" style="width:250px;height:124px"><span class="nm">RL fine-tuning</span><span class="en">PPO, started from BC</span></div>
+    </div>
+    <div class="abs" style="left:0;right:0;top:186px">
+      <p class="sub-h">Three questions answered with experiments in this lecture</p>
+      <p class="def"><b>Q1 — Data</b> : how many demonstrations do we need to collect?</p>
+      <p class="def"><b>Q2 — Model</b> : which network should learn from them — a regressor or a generative model?</p>
+      <p class="def"><b>Q3 — Beyond imitation</b> : can reinforcement learning do better, from scratch or starting from the imitation policy?</p>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Pipeline</b> : demonstrations \(\mathcal D=\{(o_t,a_t)\}\) → dataset → policy \(\pi_\phi(\mathbf a\mid o)\) → <span class="red">closed-loop success rate on unseen tasks</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 03 -->
+<section class="slide" data-title="The PushT Task: Random Start, Random Goal">
+  <p class="lead">One seed fixes the initial T pose, the goal pose and the pusher position</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:560px">
+        <table class="t sm">
+          <tr><th style="width:150px">What</th><th>Distribution</th></tr>
+          <tr><td>T start pose</td><td>\(x\sim\mathcal U(-2,2),\ y\sim\mathcal U(-1,1),\ \theta\sim\mathcal U(-\pi,\pi)\)</td></tr>
+          <tr><td>Goal pose</td><td>same; redrawn if too easy (\(&lt;1\) m and \(&lt;45^\circ\))</td></tr>
+          <tr><td>Pusher</td><td>uniform in the arena, \(\ge 1.6\) from the T</td></tr>
+        </table>
+        <p class="sub-h" style="margin-top:22px">Success</p>
+        <div class="eqbox"><div class="eq sm">\[\lVert\mathbf x_G-\mathbf x_g\rVert&lt;0.15\ \text{m}\ \ \text{and}\ \ \lvert\theta-\theta_g\rvert&lt;10^\circ\]</div></div>
+        <p class="def"><b>Seeds</b> : demos use 100000+ (expert) and 200000+ (human); <span class="red">evaluation uses 0, 1, 2, …</span> — tasks never seen in training.</p>
+      </div>
+      <div class="tfig">
+        <img src="assets/figures/il_random_tasks.png" style="width:630px" alt="Eight random PushT tasks">
+        <div class="src">Blue: T start · green dashed: goal · orange: pusher (seeds 0–7)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 04 -->
+<section class="slide" data-title="Control Loop and Demonstration Data">
+  <p class="lead">The policy moves the pusher's target at 10 Hz; the physics runs 20 substeps in between</p>
+  <div class="content">
+    <div class="two">
+      <div>
+        <p class="sub-h">State (8 numbers — what a human sees)</p>
+        <div class="eq sm">\[s_t=\big(\underbrace{x_P,\,y_P}_{\text{pusher}},\ \underbrace{x_G,\,y_G,\,\theta}_{\text{T}},\ \underbrace{x_g,\,y_g,\,\theta_g}_{\text{goal}}\big)\]</div>
+        <p class="sub-h" style="margin-top:14px">Action</p>
+        <div class="eqbox"><div class="eq sm">\[a_t=(x^{*},\,y^{*})\ \ \text{= pusher target},\qquad \Delta t=0.1\ \text{s}\]</div></div>
+        <p class="def">A PD controller pulls the pusher toward the target; contact with the T is the impulse model of the dynamics lecture.</p>
+      </div>
+      <div>
+        <p class="sub-h">One episode, saved to .npz</p>
+        <div class="eq sm">\[\tau=\big((s_0,a_0),(s_1,a_1),\dots,(s_{T-1},a_{T-1})\big)\]</div>
+        <table class="t sm" style="margin-top:6px">
+          <tr><th style="width:170px">Array</th><th style="width:130px">Shape</th><th>Meaning</th></tr>
+          <tr><td>states</td><td>(N, 8)</td><td>\(s_t\)</td></tr>
+          <tr><td>actions</td><td>(N, 2)</td><td>\(a_t\) = target</td></tr>
+          <tr><td>episode_ends</td><td>(E,)</td><td>where each episode ends</td></tr>
+          <tr><td>seeds</td><td>(E,)</td><td>re-creates the start</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Only successful episodes are saved</b> : imitating a failure teaches failure (filtered behavior cloning). Same format as the Diffusion Policy / LeRobot PushT data.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 05 -->
+<section class="slide" data-title="Physics Inside One Control Step">
+  <p class="lead">One env.step() = 0.1 s = 20 substeps of 5 ms, each with a 3-pass contact solver</p>
+  <div class="content">
+    <div class="row" style="margin-top:4px">
+      <div class="blk t-purple" style="width:196px;height:104px"><span class="nm">Target</span><span class="en">\(a_t=(x^{*},y^{*})\)</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:196px;height:104px"><span class="nm">PD pusher</span><span class="en">\(\mathbf x_P,\ \mathbf v_P\)</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-blue" style="width:196px;height:104px"><span class="nm">Contact</span><span class="en">point, \(\mathbf n\), depth</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:196px;height:104px"><span class="nm">Impulse</span><span class="en">\(j_n,\ j_t\)</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-green" style="width:196px;height:104px"><span class="nm">T motion</span><span class="en">\((\mathbf v_G,\omega)\to(\mathbf x_G,\theta)\)</span></div>
+    </div>
+    <div class="two" style="margin-top:22px">
+      <div style="flex:none;width:470px">
+        <p class="sub-h">Time steps</p>
+        <div class="eq sm">\[n_{\text{sub}}=\mathrm{round}\Big(\frac{\Delta t_{\text{ctrl}}}{\Delta t_{\text{phys}}}\Big)=\frac{0.1}{0.005}=20\]</div>
+        <p class="sub-h" style="margin-top:6px">Average contact force</p>
+        <div class="eqbox"><div class="eq sm">\[\mathbf F\approx\frac{1}{\Delta t_{\text{ctrl}}}\sum_{\text{substeps}}\mathbf J,\qquad \mathbf J=\int\mathbf F\,dt\]</div></div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_imitation.py : PushTEnv.step · pusht_keyboard_sim.py : advance</p>
+        <p class="code">def step(self, action):</p>
+        <p class="code">    self.sim.target = np.clip(action, [x_min, y_min], [x_max, y_max])</p>
+        <p class="code">    self.sim.advance(self.control_dt)        <span class="cm"># 0.1 s</span></p>
+        <p class="code">    self.t += 1</p>
+        <p class="code"> </p>
+        <p class="code">def advance(self, frame_dt):</p>
+        <p class="code">    n = max(1, int(round(frame_dt / self.physics_dt)))</p>
+        <p class="code">    self._j_sum[:] = 0.0</p>
+        <p class="code">    for _ in range(n):</p>
+        <p class="code">        self.substep(self.physics_dt)        <span class="cm"># 5 ms</span></p>
+        <p class="code">    F = self._j_sum / (n * self.physics_dt)  <span class="cm"># impulse / time</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 06 -->
+<section class="slide" data-title="Substep: PD Pusher, Damping, Integration">
+  <p class="lead">The pusher is a controlled kinematic body; the T coasts and slows down by floor friction</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:500px">
+        <p class="sub-h">1. PD control of the pusher</p>
+        <div class="eqbox"><div class="eq sm">\[\mathbf a_P=K_p(\mathbf x^{*}-\mathbf x_P)-K_d\,\mathbf v_P\]</div></div>
+        <p class="def">\(K_p=80,\ K_d=18\) : damping ratio \(\zeta=K_d/(2\sqrt{K_p})\approx1\) — fast, no overshoot. Speed limited to \(3\) m/s.</p>
+        <p class="sub-h">2. Floor friction as exponential decay</p>
+        <div class="eq sm">\[\mathbf v_G\leftarrow\mathbf v_G\,e^{-c_v\Delta t},\qquad \omega\leftarrow\omega\,e^{-c_\omega\Delta t}\]</div>
+        <p class="sub-h">3. Semi-implicit Euler</p>
+        <div class="eq sm">\[\mathbf x_G\leftarrow\mathbf x_G+\mathbf v_G\Delta t,\qquad \theta\leftarrow\theta+\omega\Delta t\]</div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_keyboard_sim.py : KeyboardPushT.substep</p>
+        <p class="code"><span class="cm"># 1. pusher PD control toward the target</span></p>
+        <p class="code">acc = self.kp * (self.target - P.pos) - self.kd * P.vel</p>
+        <p class="code">P.vel += acc * dt</p>
+        <p class="code">speed = np.linalg.norm(P.vel)</p>
+        <p class="code">if speed &gt; self.max_speed:</p>
+        <p class="code">    P.vel *= self.max_speed / speed</p>
+        <p class="code">P.pos += P.vel * dt               <span class="cm"># new velocity first</span></p>
+        <p class="code"> </p>
+        <p class="code"><span class="cm"># 2. damping  3. integrate the T</span></p>
+        <p class="code">T.vel *= math.exp(-self.linear_damping * dt)</p>
+        <p class="code">T.omega *= math.exp(-self.angular_damping * dt)</p>
+        <p class="code">T.pos += T.vel * dt</p>
+        <p class="code">T.angle += T.omega * dt</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Consequence</b> : released at speed \(v\), the T slides another \(\int_0^\infty v e^{-c_v t}dt=v/c_v\) — <span class="red">the expert slows down near the goal</span> for this reason.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 07 -->
+<section class="slide" data-title="T Geometry: Mass Moment of Inertia">
+  <p class="lead">Composite body: two rectangles, each shifted to the T's centre of mass</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:510px">
+        <p class="sub-h">Centre of mass (mass ∝ area)</p>
+        <div class="eq sm">\[\bar y=\frac{A_1y_1+A_2y_2}{A_1+A_2}\]</div>
+        <p class="sub-h">Rectangle + parallel-axis theorem</p>
+        <div class="eqbox"><div class="eq sm">\[I_G=\sum_i\Big[\tfrac{m_i}{12}(a_i^2+b_i^2)+m_i\,d_i^2\Big]\]</div></div>
+        <table class="t sm">
+          <tr><th style="width:250px">Value (\(m=1\))</th><th>Result</th></tr>
+          <tr><td>top bar</td><td>\(1.8\times0.5\)</td></tr>
+          <tr><td>stem</td><td>\(0.5\times1.3\)</td></tr>
+          <tr><td>COM below the top edge</td><td>0.627</td></tr>
+          <tr><td>\(I_G\)</td><td><b>0.434</b></td></tr>
+        </table>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_keyboard_sim.py : make_T_geometry</p>
+        <p class="code">top_area = W * top_t</p>
+        <p class="code">stem_h = H - top_t</p>
+        <p class="code">stem_area = stem_w * stem_h</p>
+        <p class="code">total_area = top_area + stem_area</p>
+        <p class="code"> </p>
+        <p class="code">y_top, y_stem = H / 2 - top_t / 2, -top_t / 2</p>
+        <p class="code">y_com = (top_area * y_top + stem_area * y_stem) / total_area</p>
+        <p class="code"> </p>
+        <p class="code">m_top = mass * top_area / total_area</p>
+        <p class="code">m_stem = mass * stem_area / total_area</p>
+        <p class="code"><span class="cm"># own centre + parallel-axis shift to the COM</span></p>
+        <p class="code">I_top = m_top * (W**2 + top_t**2) / 12 \</p>
+        <p class="code">        + m_top * (y_top - y_com) ** 2</p>
+        <p class="code">I_stem = m_stem * (stem_w**2 + stem_h**2) / 12 \</p>
+        <p class="code">        + m_stem * (y_stem - y_com) ** 2</p>
+        <p class="code">vertices[:, 1] -= y_com   <span class="cm"># body origin = COM</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 08 -->
+<section class="slide" data-title="Contact Detection: Circle vs T">
+  <p class="lead">Work in the T's own frame: closest point on the 8 edges, then inside / outside</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:520px">
+        <p class="sub-h">World → body frame</p>
+        <div class="eq sm">\[\mathbf c=R(\theta)^{\!\top}(\mathbf x_P-\mathbf x_G)\]</div>
+        <p class="sub-h">Closest point on edge \(i\)</p>
+        <div class="eq sm">\[t_i=\mathrm{clip}\Big(\frac{(\mathbf c-\mathbf a_i)\cdot(\mathbf b_i-\mathbf a_i)}{\lVert\mathbf b_i-\mathbf a_i\rVert^2},0,1\Big)\]</div>
+        <div class="eq sm">\[\mathbf q_i=\mathbf a_i+t_i(\mathbf b_i-\mathbf a_i),\quad i^{*}=\arg\min_i\lVert\mathbf q_i-\mathbf c\rVert\]</div>
+        <p class="sub-h">Penetration (pusher radius \(\rho\))</p>
+        <div class="eqbox"><div class="eq sm">\[\delta=\begin{cases}\rho-d & \text{outside}\\ \rho+d & \text{inside}\end{cases},\qquad \mathbf n=R\,\mathbf n_{\text{local}}\]</div></div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_imitation.py : circle_vs_T_fast (all edges at once)</p>
+        <p class="code">R = rotation_matrix(body_angle)</p>
+        <p class="code">c = R.T @ (circle_pos - body_pos)     <span class="cm"># world -&gt; T</span></p>
+        <p class="code">A = vertices</p>
+        <p class="code">AB = np.roll(vertices, -1, axis=0) - A</p>
+        <p class="code">t = np.clip(((c - A) * AB).sum(1) / (AB * AB).sum(1), 0, 1)</p>
+        <p class="code">Q = A + t[:, None] * AB               <span class="cm"># closest points</span></p>
+        <p class="code">d2 = ((Q - c) ** 2).sum(1)</p>
+        <p class="code">i = int(np.argmin(d2))</p>
+        <p class="code">d = math.sqrt(d2[i])</p>
+        <p class="code">inside = ...                           <span class="cm"># ray casting</span></p>
+        <p class="code">if not inside and d &gt;= radius:</p>
+        <p class="code">    return None</p>
+        <p class="code">direction = (Q[i] - c) / d</p>
+        <p class="code">n_local, pen = (-direction, radius + d) if inside \</p>
+        <p class="code">          else (direction, radius - d)</p>
+        <p class="code">n = R @ n_local</p>
+        <p class="code">return body_pos + R @ Q[i], n, pen</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Speed</b> : the numpy version replaces an 8-iteration Python loop — identical results on 2000 random cases, checked in the tutorial.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 09 -->
+<section class="slide" data-title="Contact Velocity and Normal Impulse">
+  <p class="lead">Relative velocity says whether the bodies approach; an impulse stops them</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:520px">
+        <p class="sub-h">Velocity of the contact point</p>
+        <div class="eq sm">\[\mathbf v_C=\mathbf v_G+\boldsymbol\omega\times\mathbf r,\qquad \boldsymbol\omega\times\mathbf r=(-\omega r_y,\ \omega r_x)\]</div>
+        <div class="eq sm">\[v_n=(\mathbf v_C-\mathbf v_P)\cdot\mathbf n\ &lt;0\ \ \Rightarrow\ \text{approaching}\]</div>
+        <p class="sub-h">Normal impulse</p>
+        <div class="eqbox">
+          <div class="eq sm">\[K_n=\frac1m+\frac{(\mathbf r\times\mathbf n)^2}{I},\quad j_n=-\frac{(1+e)\,v_n}{K_n}\]</div>
+          <div class="eq sm">\[\Delta\mathbf v_G=\frac{j_n\mathbf n}{m},\qquad \Delta\omega=\frac{\mathbf r\times j_n\mathbf n}{I}\]</div>
+        </div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_keyboard_sim.py : resolve_impulse (part 1)</p>
+        <p class="code">point, n, pen = contact</p>
+        <p class="code">r = point - body.pos</p>
+        <p class="code">v_rel = body.vel + omega_cross_r(body.omega, r) - other_vel</p>
+        <p class="code">v_n = float(np.dot(v_rel, n))</p>
+        <p class="code"> </p>
+        <p class="code">if v_n &lt; 0:                                  <span class="cm"># approaching</span></p>
+        <p class="code">    K_n = 1.0 / body.mass + cross2(r, n) ** 2 / body.inertia</p>
+        <p class="code">    j_n = -(1.0 + restitution) * v_n / K_n</p>
+        <p class="code">    J = j_n * n</p>
+        <p class="code">    body.vel += J / body.mass</p>
+        <p class="code">    body.omega += cross2(r, J) / body.inertia</p>
+        <p class="code"> </p>
+        <p class="code">def cross2(a, b):        <span class="cm"># 2D cross product, z only</span></p>
+        <p class="code">    return a[0] * b[1] - a[1] * b[0]</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Kinematic pusher</b> : \(1/m_P=0,\ 1/I_P=0\), so only the T's terms remain in \(K_n\). PushT uses \(e=0\) — after impact \(v_n^{+}=0\).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 10 -->
+<section class="slide" data-title="Why Contact Height Matters">
+  <p class="lead">The same push at a different height splits into translation and rotation differently</p>
+  <div class="content">
+    <p class="sub-h">Derivation: normal velocity change at C</p>
+    <div class="eq sm">\[\Delta v_n=\Big(\frac{j\mathbf n}{m}+\Delta\boldsymbol\omega\times\mathbf r\Big)\cdot\mathbf n=j\Big(\frac1m+\frac{(\mathbf r\times\mathbf n)^2}{I}\Big)=jK_n\]</div>
+    <div class="two">
+      <div style="flex:none;width:520px">
+        <div class="eqbox"><div class="eq sm">\[v_n^{+}=v_n+jK_n=-e\,v_n\ \Rightarrow\ j=-\frac{(1+e)v_n}{K_n}\]</div></div>
+        <p class="def">Stem's left face (\(x=-0.25\)), \(\mathbf v_P=(1,0)\), \(e=0,\ \mu=0\) : \(\ \mathbf r\times\mathbf n=-y,\ \ K_n=1+y^2/I\)</p>
+      </div>
+      <div>
+        <table class="t sm">
+          <tr><th style="width:120px">Height \(y\)</th><th style="width:100px">\(K_n\)</th><th style="width:100px">\(j_n\)</th><th style="width:100px">\(\Delta v_x\)</th><th>\(\Delta\omega\)</th></tr>
+          <tr><td>0 (COM)</td><td>1.000</td><td>1.000</td><td>1.000</td><td>0.000</td></tr>
+          <tr><td>−0.5</td><td>1.576</td><td>0.634</td><td>0.634</td><td>0.731</td></tr>
+          <tr><td>−1.0</td><td>3.305</td><td>0.303</td><td>0.303</td><td>0.697</td></tr>
+        </table>
+        <p class="cap">Output of resolve_impulse() — pusht_mini_sim.py, section 8</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def"><b>At the COM</b> : pure translation. <b>Far from the COM</b> : smaller impulse, mostly rotation.</p>
+      <p class="def" style="margin:0"><b>This is PushT</b> : <span class="red">choosing the contact point chooses the motion</span> — exactly what the scripted expert and the learned policies must do.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 11 -->
+<section class="slide" data-title="Coulomb Friction Impulse">
+  <p class="lead">Cancel the sliding velocity at the contact, but never beyond \(\mu\,j_n\)</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:500px">
+        <p class="sub-h">Tangent direction</p>
+        <div class="eq sm">\[\mathbf n=(n_x,n_y)\ \Rightarrow\ \mathbf t=(-n_y,\ n_x)\]</div>
+        <p class="sub-h">Impulse that stops sliding</p>
+        <div class="eq sm">\[v_t=\mathbf v_{\text{rel}}\cdot\mathbf t,\qquad K_t=\frac1m+\frac{(\mathbf r\times\mathbf t)^2}{I}\]</div>
+        <div class="eq sm">\[j_t^{*}=-\frac{v_t}{K_t}\]</div>
+        <p class="sub-h">Coulomb limit</p>
+        <div class="eqbox"><div class="eq sm">\[j_t=\mathrm{clip}\big(j_t^{*},\,-\mu j_n,\,\mu j_n\big),\qquad \mu=0.4\]</div></div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_keyboard_sim.py : resolve_impulse (part 2)</p>
+        <p class="code"><span class="cm"># friction, using the velocity after the normal impulse</span></p>
+        <p class="code">t = np.array([-n[1], n[0]])</p>
+        <p class="code">v_rel = body.vel + omega_cross_r(body.omega, r) - other_vel</p>
+        <p class="code">v_t = float(np.dot(v_rel, t))</p>
+        <p class="code">K_t = 1.0 / body.mass + cross2(r, t) ** 2 / body.inertia</p>
+        <p class="code">j_t = float(np.clip(-v_t / K_t,</p>
+        <p class="code">                   -friction * j_n, friction * j_n))</p>
+        <p class="code">Jt = j_t * t</p>
+        <p class="code">body.vel += Jt / body.mass</p>
+        <p class="code">body.omega += cross2(r, Jt) / body.inertia</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Effect</b> : with friction the pusher can drag the T sideways and rotate it; with \(\mu=0\) it <span class="red">slips along the surface</span> (try F in the keyboard demo).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 12 -->
+<section class="slide" data-title="Walls and Penetration Correction">
+  <p class="lead">A wall is a kinematic body with zero velocity — the same impulse function handles it</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:500px">
+        <p class="sub-h">Wall = pusher with \(\mathbf v=\mathbf 0\)</p>
+        <div class="eq sm">\[\mathbf v_{\text{other}}=\mathbf 0,\qquad \frac1{m_{\text{wall}}}=0\]</div>
+        <p class="def">Left wall: \(\ \delta=x_{\min}-p_{i,x}&gt;0,\ \ \mathbf n=(1,0)\)</p>
+        <p class="sub-h">Penetration correction</p>
+        <div class="eqbox"><div class="eq sm">\[\mathbf x_G\leftarrow\mathbf x_G+0.8\,\max(\delta-10^{-4},0)\,\mathbf n\]</div></div>
+        <p class="def">Discrete time jumps \(t\to t+\Delta t\) leave overlaps that impulses alone cannot remove.</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_keyboard_sim.py : wall_contacts · substep (step 4)</p>
+        <p class="code">world = body.pos + body.vertices @ rotation_matrix(body.angle).T</p>
+        <p class="code">for p in world:</p>
+        <p class="code">    for depth, n in ((x_min - p[0], (1.0, 0.0)), ...):</p>
+        <p class="code">        if depth &gt; 0:</p>
+        <p class="code">            contacts.append((p.copy(), np.array(n), depth))</p>
+        <p class="code"> </p>
+        <p class="code"><span class="cm"># 4. contact solver: pusher-T and wall-T</span></p>
+        <p class="code">for _ in range(3):</p>
+        <p class="code">    c = circle_vs_T(P.pos, P.radius, T.pos, T.angle, T.vertices)</p>
+        <p class="code">    if c is not None:</p>
+        <p class="code">        jn, jt = resolve_impulse(T, P.vel, c, e, mu)</p>
+        <p class="code">    for w in wall_contacts(T):</p>
+        <p class="code">        resolve_impulse(T, np.zeros(2), w, e, mu)</p>
+        <p class="code"> </p>
+        <p class="code"><span class="cm"># end of resolve_impulse</span></p>
+        <p class="code">body.pos += 0.8 * max(pen - 1e-4, 0.0) * n</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 13 -->
+<section class="slide" data-title="Physics Summary: Equation ↔ Code">
+  <p class="lead">Every line of the simulator is an equation from the dynamics lecture</p>
+  <div class="content">
+    <table class="t sm">
+      <tr><th style="width:300px">Lecture idea</th><th style="width:430px">Equation</th><th>Code</th></tr>
+      <tr><td>PD control</td><td>\(\mathbf a_P=K_p(\mathbf x^{*}-\mathbf x_P)-K_d\mathbf v_P\)</td><td>substep, step 1</td></tr>
+      <tr><td>Parallel-axis theorem</td><td>\(I_G=\sum\big[\tfrac{m_i}{12}(a_i^2+b_i^2)+m_id_i^2\big]\)</td><td>make_T_geometry</td></tr>
+      <tr><td>Relative velocity</td><td>\(\mathbf v_C=\mathbf v_G+\boldsymbol\omega\times\mathbf r\)</td><td>omega_cross_r</td></tr>
+      <tr><td>Restitution</td><td>\(v_n^{+}=-e\,v_n^{-}\)</td><td>j_n = -(1+e) v_n / K_n</td></tr>
+      <tr><td>Linear impulse–momentum</td><td>\(\Delta\mathbf v_G=\mathbf J/m\)</td><td>body.vel += J / m</td></tr>
+      <tr><td>Angular impulse–momentum</td><td>\(\Delta\omega=(\mathbf r\times\mathbf J)/I\)</td><td>body.omega += cross2(r, J) / I</td></tr>
+      <tr><td>Coulomb friction</td><td>\(\lvert j_t\rvert\le\mu j_n\)</td><td>np.clip(-v_t / K_t, ...)</td></tr>
+      <tr><td>Impulse = force × time</td><td>\(\mathbf F\approx\sum\mathbf J/\Delta t\)</td><td>advance</td></tr>
+    </table>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Files</b> : derivations in pusht_mini_sim.py · real-time version in pusht_keyboard_sim.py · random tasks in pusht_imitation.py</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 14 -->
+<section class="slide" data-title="Collecting Human Demonstrations">
+  <p class="lead">python pusht_imitation.py collect — the keyboard simulator with a recorder added</p>
+  <div class="content">
+    <div class="two">
+      <div class="tfig" style="flex:none;width:640px">
+        <img src="assets/figures/il_recorder.png" style="width:640px" alt="Demo recorder window">
+        <div class="src">Recorder window: arrows / WASD or mouse drag move the target; reaching the goal auto-saves</div>
+      </div>
+      <div>
+        <p class="sub-h">Three rules for clean data</p>
+        <p class="def"><b>Fixed 10 Hz</b> : the screen draws at 20 fps, but \((s_t,a_t)\) is recorded every 0.1 s — one human step = one env.step().</p>
+        <p class="def"><b>Idle start trimmed</b> : time spent thinking before the first move is not recorded, so the policy never learns to stand still.</p>
+        <p class="def"><b>Physics fixed</b> : friction / restitution switches are off — same state, same consequence.</p>
+        <p class="def" style="margin-top:6px"><b>Keys</b> : N new task · R restart · Backspace delete last · Space pause</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Cost</b> : one human demo takes 15–30 s, so 200 demos take <span class="red">1.5–2 hours</span> → we also need an automatic demonstrator.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 15 -->
+<section class="slide" data-title="Scripted Expert: Impulse–Momentum as a Policy">
+  <p class="lead">A "virtual human" that chooses where to push with the lecture's impulse equations</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:610px">
+        <p class="sub-h">(1) Where to push — unit impulse \(\mathbf n_k\) at candidate \(C_k\)</p>
+        <div class="eq sm">\[\Delta\mathbf v_G=\frac{\mathbf n_k}{m},\qquad \Delta\omega=\frac{\mathbf r_k\times\mathbf n_k}{I}\]</div>
+        <div class="eqbox"><div class="eq sm">\[k^{*}=\arg\max_k\ \frac{\mathbf c_k\cdot\mathbf d}{\lVert\mathbf c_k\rVert\,\lVert\mathbf d\rVert}\]</div></div>
+      </div>
+      <div>
+        <p class="def"><b>Candidates</b> : 8 edges × 3 points; \(\mathbf d\) = desired \((\Delta x,\Delta y,L\,\Delta\theta)\), \(\mathbf c_k\) = its effect.</p>
+        <p class="def"><b>(2) Approach</b> : go to a standoff point; orbit around the T if the straight path is blocked.</p>
+        <p class="def"><b>(3) Push</b> : along \(\mathbf n_k\), slowing in proportion to the remaining error (the T slides \(\approx v/c_v\) after release).</p>
+      </div>
+    </div>
+    <div class="tfig" style="margin-top:2px">
+      <img src="assets/figures/il_expert_rollouts.png" style="height:205px" alt="Expert rollouts">
+      <div class="src">Expert rollouts (orange: pusher path, colour: time) — success ≈ 88–91 % on random tasks</div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 16 -->
+<section class="slide" data-title="Scripted Expert: Equation ↔ Code">
+  <p class="lead">Score each candidate push by how well its impulse response points toward the goal</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:480px">
+        <p class="sub-h">Desired change (\(L=0.8\))</p>
+        <div class="eq sm">\[\mathbf d=\big(x_g-x_G,\ y_g-y_G,\ L(\theta_g-\theta)\big)\]</div>
+        <p class="sub-h">Response to a unit impulse at \(C_k\)</p>
+        <div class="eq sm">\[\mathbf c_k=\Big(\frac{\mathbf n_k}{m},\ L\,\frac{\mathbf r_k\times\mathbf n_k}{I}\Big)\]</div>
+        <p class="sub-h">Cosine score</p>
+        <div class="eqbox"><div class="eq sm">\[s_k=\frac{\mathbf c_k\cdot\mathbf d}{\lVert\mathbf c_k\rVert\lVert\mathbf d\rVert}\]</div></div>
+        <p class="def">Penalty for pushing into a touching wall; +0.1 for keeping the same contact.</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_imitation.py : ScriptedExpert.act</p>
+        <p class="code">e = sim.goal_pos - T.pos</p>
+        <p class="code">d = np.array([e[0], e[1],</p>
+        <p class="code">              self.L * wrap_angle(sim.goal_angle - T.angle)])</p>
+        <p class="code">for k, (c_local, out_local) in enumerate(self.cands):</p>
+        <p class="code">    cw, out = T.pos + R @ c_local, R @ out_local</p>
+        <p class="code">    n_in, r = -out, cw - T.pos</p>
+        <p class="code">    c = np.array([n_in[0] / T.mass, n_in[1] / T.mass,</p>
+        <p class="code">                  self.L * cross2(r, n_in) / T.inertia])</p>
+        <p class="code">    score = c @ d / (np.linalg.norm(c) * d_norm + 1e-9)</p>
+        <p class="code">    for n_wall in walls:</p>
+        <p class="code">        if n_in @ np.array(n_wall) &lt; -0.3:</p>
+        <p class="code">            score -= 0.6     <span class="cm"># into that wall</span></p>
+        <p class="code">    if k == self.cur:</p>
+        <p class="code">        score += 0.1         <span class="cm"># hysteresis</span></p>
+        <p class="code"> </p>
+        <p class="code"><span class="cm"># push: slower when close to the goal</span></p>
+        <p class="code">step = float(np.clip(0.3 * d_norm, 0.04, 0.12))</p>
+        <p class="code">return P.pos - out * (step + 0.04)</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 17 -->
+<section class="slide" data-title="How Many Demonstrations? Reference Points">
+  <p class="lead">Published PushT and manipulation work uses 50–200 demonstrations per task</p>
+  <div class="content">
+    <table class="t sm">
+      <tr><th style="width:400px">Source</th><th style="width:430px">Task</th><th>Demonstrations</th></tr>
+      <tr><td>Diffusion Policy (Chi et al., 2023)</td><td>PushT, <b>fixed goal</b>, random start</td><td>200 human (≈ 25k steps)</td></tr>
+      <tr><td>LeRobot pusht dataset</td><td>same task</td><td>206 episodes, 25,650 frames</td></tr>
+      <tr><td>ACT / ALOHA (Zhao et al., 2023)</td><td>real bimanual robot</td><td>50 per task</td></tr>
+    </table>
+    <p class="sub-h" style="margin-top:24px">Suggested plan for human demonstrations (15–30 s each)</p>
+    <table class="t sm">
+      <tr><th style="width:250px">Stage</th><th style="width:150px">Demos</th><th style="width:150px">Time</th><th>Purpose</th></tr>
+      <tr><td>Pipeline check</td><td>10–20</td><td>10 min</td><td>save / load / train runs, loss goes down</td></tr>
+      <tr><td>First results</td><td>50–100</td><td>30–60 min</td><td>successes start; study the failures</td></tr>
+      <tr><td>Usable policy</td><td>≥ 200</td><td>1.5–2 h</td><td>Diffusion Policy paper scale</td></tr>
+    </table>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>More important than the count</b> : spread-out initial conditions, <span class="red">a consistent strategy</span>, and discarded failures. Our goal is random too — harder than the original PushT.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 18 -->
+<section class="slide" data-title="Goal Frame: Relative Motion Removes the Random Goal">
+  <p class="lead">Ride along with the goal — the same idea as relative motion in rigid-body kinematics</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:740px">
+        <div class="eqbox"><div class="eq sm">\[\tilde{\mathbf p}=R(\theta_g)^{\!\top}(\mathbf p-\mathbf x_g),\qquad \tilde\theta=\theta-\theta_g\]</div></div>
+        <div class="eq sm">\[o_t=\big(\tilde x_P,\ \tilde y_P,\ \tilde x_G,\ \tilde y_G,\ \cos\tilde\theta,\ \sin\tilde\theta\big)\]</div>
+        <div class="eq sm">\[\tilde{\mathbf a}_{t+i}=R(\theta_g)^{\!\top}\big(\mathbf a_{t+i}-\mathbf x_P(t)\big)\]</div>
+        <table class="t sm" style="margin-top:4px">
+          <tr><th style="width:400px">Action representation (goal frame)</th><th style="width:150px">MLP-BC</th><th>Diffusion</th></tr>
+          <tr><td>absolute target position</td><td>26 %</td><td>20 %</td></tr>
+          <tr><td>offset from the current pusher</td><td><b>36 %</b></td><td><b>46 %</b></td></tr>
+        </table>
+      </div>
+      <div class="tfig">
+        <img src="assets/figures/il_goal_frame.png" style="height:350px" alt="One training sample in the goal frame">
+        <div class="src">One training sample: goal at the origin, 0°</div>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Without the goal frame</b> : <span class="red">0 % success for both models</span> — a good representation saves data.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 19 -->
+<section class="slide" data-title="Goal Frame: Equation ↔ Code">
+  <p class="lead">A rotation and a translation — written out by hand so it works on any batch shape</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:500px">
+        <div class="eqbox"><div class="eq sm">\[\tilde{\mathbf p}=R(\theta_g)^{\!\top}(\mathbf p-\mathbf x_g)=\begin{pmatrix}c&amp;s\\-s&amp;c\end{pmatrix}\mathbf v\]</div></div>
+        <div class="eq sm">\[o_t=\big(\tilde{\mathbf x}_P,\ \tilde{\mathbf x}_G,\ \cos\tilde\theta,\ \sin\tilde\theta\big)\]</div>
+        <div class="eq sm">\[\tilde{\mathbf a}=R(\theta_g)^{\!\top}(\mathbf a-\mathbf x_P),\quad \mathbf a=\mathbf x_P+R(\theta_g)\tilde{\mathbf a}\]</div>
+        <p class="def">State layout: \(s=(x_P,y_P,x_G,y_G,\theta,x_g,y_g,\theta_g)\) → indices 0–7.</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_imitation.py : to_goal_frame · make_obs · action_to_model</p>
+        <p class="code">def to_goal_frame(points, state, origin=None):</p>
+        <p class="code">    c, s = math.cos(state[7]), math.sin(state[7])</p>
+        <p class="code">    v = points - (state[5:7] if origin is None else origin)</p>
+        <p class="code">    return np.stack([ c * v[..., 0] + s * v[..., 1],</p>
+        <p class="code">                     -s * v[..., 0] + c * v[..., 1]], -1)</p>
+        <p class="code"> </p>
+        <p class="code">def make_obs(state):</p>
+        <p class="code">    p = to_goal_frame(state[0:2], state)</p>
+        <p class="code">    T = to_goal_frame(state[2:4], state)</p>
+        <p class="code">    dth = state[4] - state[7]</p>
+        <p class="code">    return np.array([p[0], p[1], T[0], T[1],</p>
+        <p class="code">                     math.cos(dth), math.sin(dth)])</p>
+        <p class="code"> </p>
+        <p class="code">def action_to_model(actions, state):</p>
+        <p class="code">    return to_goal_frame(actions, state, origin=state[0:2])</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 20 -->
+<section class="slide" data-title="Observation History and Action Chunks">
+  <p class="lead">See two frames, plan eight actions, execute four, then re-plan</p>
+  <div class="content">
+    <div class="row" style="margin-top:8px">
+      <div class="blk t-blue" style="width:250px;height:124px"><span class="nm">Observe</span><span class="en">\((o_{t-1},\,o_t)\), \(T_o=2\)</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-green" style="width:250px;height:124px"><span class="nm">Predict</span><span class="en">\(\mathbf a_{t:t+8}\), \(H=8\) (0.8 s)</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:250px;height:124px"><span class="nm">Execute</span><span class="en">first \(T_a=4\) actions</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-purple" style="width:250px;height:124px"><span class="nm">Re-plan</span><span class="en">receding horizon</span></div>
+    </div>
+    <div class="two" style="margin-top:30px">
+      <div>
+        <p class="def"><b>Two frames</b> : the difference gives velocity — is the T still sliding?</p>
+        <p class="def"><b>Chunks</b> : one-step predictions change every 0.1 s and jitter; a chunk commits to a motion for a moment.</p>
+      </div>
+      <div>
+        <p class="def"><b>Normalize</b> : \(z=(x-\mu)/\sigma\), statistics from the training set only.</p>
+        <p class="def"><b>Split by episode</b> : neighbouring steps are nearly identical — a step-wise split leaks data into validation.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Trade-off</b> : 4 steps run open-loop, so an unexpected slide is corrected only at the next re-plan.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 21 -->
+<section class="slide" data-title="Which Model? The Multimodality Problem">
+  <p class="lead">MSE learns the average action — the average of two good actions can be bad</p>
+  <div class="content">
+    <div class="eqbox"><div class="eq sm">\[\min_\phi\ \mathbb E_{(o,a)\sim\mathcal D}\big\lVert\pi_\phi(o)-a\big\rVert^2\quad\Longrightarrow\quad \pi^{*}(o)=\mathbb E[a\mid o]\]</div></div>
+    <div class="tfig">
+      <img src="assets/figures/il_toy.png" style="width:1080px" alt="Toy multimodality experiment">
+      <div class="src">Toy problem: demonstrations avoid an obstacle up or down (50/50). MLP-BC learns \(a\approx0\) — straight into it; Diffusion samples both modes.</div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>In PushT</b> : "go around the left or the right side of the T?" — <span class="red">MLP-BC hesitates in between</span>; human demos are even more multimodal.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 22 -->
+<section class="slide" data-title="Policy Model Candidates">
+  <p class="lead">Learn a distribution \(p(a\mid o)\) instead of a single average action</p>
+  <div class="content">
+    <table class="t sm">
+      <tr><th style="width:320px">Model</th><th style="width:280px">Output</th><th style="width:170px">Multimodal</th><th>Notes</th></tr>
+      <tr><td>MLP-BC (MSE)</td><td>one point</td><td>no (mean)</td><td>fastest, simplest — baseline</td></tr>
+      <tr><td>MLP-BC + action chunk</td><td>\(H\) points</td><td>no</td><td>temporally consistent</td></tr>
+      <tr><td>GMM / MDN</td><td>\(K\) Gaussians</td><td>partly</td><td>number of modes \(K\) fixed in advance</td></tr>
+      <tr><td>VQ-BeT</td><td>discrete code + offset</td><td>yes</td><td>Transformer</td></tr>
+      <tr><td>ACT (CVAE + Transformer)</td><td>chunk</td><td>yes</td><td>real robot, 50 demos</td></tr>
+      <tr><td><b>Diffusion Policy</b></td><td>chunk, sampled</td><td><b>yes</b></td><td>standard PushT baseline, stable training</td></tr>
+    </table>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def"><b>Our choice</b> : MLP-BC as the baseline, Diffusion Policy as the main model — <span class="red">same MLP trunk</span> (3 layers, width 512, Mish).</p>
+      <p class="def" style="margin:0"><b>So the only difference is</b> : learning the mean vs. learning the distribution.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 23 -->
+<section class="slide" data-title="Diffusion Policy (DDPM) in Three Steps">
+  <p class="lead">Learn to remove noise from action chunks; at run time, denoise noise into actions</p>
+  <div class="content">
+    <p class="sub-h">1. Forward process: mix noise into a clean chunk \(\mathbf a^0\)</p>
+    <div class="eq sm">\[\mathbf a^k=\sqrt{\bar\alpha_k}\,\mathbf a^0+\sqrt{1-\bar\alpha_k}\,\boldsymbol\epsilon,\qquad \boldsymbol\epsilon\sim\mathcal N(\mathbf 0,I),\quad k=1,\dots,K\]</div>
+    <p class="sub-h" style="margin-top:8px">2. Training: predict the noise</p>
+    <div class="eqbox"><div class="eq sm">\[\mathcal L=\mathbb E_{k,\boldsymbol\epsilon}\big\lVert\epsilon_\phi(\mathbf a^k,k,o)-\boldsymbol\epsilon\big\rVert^2\]</div></div>
+    <p class="sub-h">3. Sampling: start from \(\mathbf a^K\sim\mathcal N(\mathbf 0,I)\), step \(k=K,\dots,1\)</p>
+    <div class="eq sm">\[\hat{\mathbf a}^0=\frac{\mathbf a^k-\sqrt{1-\bar\alpha_k}\,\epsilon_\phi}{\sqrt{\bar\alpha_k}},\qquad \mathbf a^{k-1}=\frac{\sqrt{\bar\alpha_{k-1}}\,\beta_k}{1-\bar\alpha_k}\hat{\mathbf a}^0+\frac{\sqrt{\alpha_k}\,(1-\bar\alpha_{k-1})}{1-\bar\alpha_k}\mathbf a^k+\sigma_k\mathbf z\]</div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Why it is multimodal</b> : each run starts from different noise → a different sample → <span class="red">different modes of the demonstrations</span>. Cosine schedule \(\beta_k\), \(K=50\).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 24 -->
+<section class="slide" data-title="Diffusion Policy: Equation ↔ Code">
+  <p class="lead">Training is one line of noise mixing; sampling is a loop of K = 50 denoising steps</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:470px">
+        <p class="sub-h">Training</p>
+        <div class="eq sm">\[\mathbf a^k=\sqrt{\bar\alpha_k}\,\mathbf a^0+\sqrt{1-\bar\alpha_k}\,\boldsymbol\epsilon\]</div>
+        <div class="eqbox"><div class="eq sm">\[\mathcal L=\lVert\epsilon_\phi(\mathbf a^k,k,o)-\boldsymbol\epsilon\rVert^2\]</div></div>
+        <p class="sub-h">Sampling</p>
+        <div class="eq sm">\[\hat{\mathbf a}^0=\frac{\mathbf a^k-\sqrt{1-\bar\alpha_k}\,\epsilon_\phi}{\sqrt{\bar\alpha_k}}\]</div>
+        <div class="eq sm">\[\mathbf a^{k-1}=\mu_k(\hat{\mathbf a}^0,\mathbf a^k)+\sigma_k\mathbf z\]</div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_imitation.py : DiffusionPolicy.loss · predict</p>
+        <p class="code">def loss(self, x, y):</p>
+        <p class="code">    a0 = self.ny(y)</p>
+        <p class="code">    k = torch.randint(0, self.K, (len(a0),))</p>
+        <p class="code">    eps = torch.randn_like(a0)</p>
+        <p class="code">    ab = self.abar[k][:, None]</p>
+        <p class="code">    a_k = ab.sqrt() * a0 + (1 - ab).sqrt() * eps</p>
+        <p class="code">    return ((self.eps_hat(a_k, k, self.nx(x)) - eps) ** 2).mean()</p>
+        <p class="code"> </p>
+        <p class="code">def predict(self, x):</p>
+        <p class="code">    a = torch.randn(len(xn), self.d_act)    <span class="cm"># a^K ~ N(0, I)</span></p>
+        <p class="code">    for k in reversed(range(self.K)):</p>
+        <p class="code">        ab = self.abar[k]</p>
+        <p class="code">        a0 = (a - (1 - ab).sqrt() * self.eps_hat(a, kk, xn)) / ab.sqrt()</p>
+        <p class="code">        mean = (ab_prev.sqrt() * self.betas[k] / (1 - ab)) * a0 \</p>
+        <p class="code">             + (self.alphas[k].sqrt() * (1 - ab_prev) / (1 - ab)) * a</p>
+        <p class="code">        var = self.betas[k] * (1 - ab_prev) / (1 - ab)</p>
+        <p class="code">        a = mean + var.sqrt() * torch.randn_like(a)</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 25 -->
+<section class="slide" data-title="Training Settings Found by Experiment">
+  <p class="lead">Diffusion needs more capacity or more steps than MLP-BC before it pays off</p>
+  <div class="content">
+    <table class="t sm">
+      <tr><th style="width:640px">Setting (180 expert demos, unseen tasks)</th><th style="width:220px">MLP-BC</th><th>Diffusion</th></tr>
+      <tr><td>width 256, lr \(10^{-3}\), no EMA, 30k steps</td><td>32 %</td><td>8 %</td></tr>
+      <tr><td>width 256, lr \(3\times10^{-3}\) + EMA, 30k steps</td><td>36–46 %</td><td>18–42 %</td></tr>
+      <tr><td>width 256, lr \(3\times10^{-3}\) + EMA, 80k steps</td><td>—</td><td>64 %</td></tr>
+      <tr><td><b>width 512</b>, lr \(3\times10^{-3}\) + EMA, 30k steps (<b>default</b>)</td><td>38–59 %</td><td>54–63 %</td></tr>
+      <tr><td>width 512, lr \(3\times10^{-3}\) + EMA, 50k steps</td><td>—</td><td>69 %</td></tr>
+    </table>
+    <div class="two" style="margin-top:16px">
+      <div>
+        <div class="eqbox"><div class="eq sm">\[\phi_{\text{EMA}}\leftarrow 0.999\,\phi_{\text{EMA}}+0.001\,\phi\]</div></div>
+      </div>
+      <div>
+        <p class="def">Batch 256, AdamW, cosine lr decay; about 1 min per model on GPU, 4 min on CPU.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Caution</b> : re-running the same setting moves success by <span class="red">±10 %</span>; validation loss does not predict success (0.116 → 0.132 while 62 % → 69 %).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 26 -->
+<section class="slide" data-title="How Many Demonstrations? Measured">
+  <p class="lead">Diffusion reaches most of its performance at about 100 demonstrations</p>
+  <div class="content">
+    <div class="two">
+      <div class="tfig" style="flex:none;width:600px">
+        <img src="assets/figures/il_scaling.png" style="height:420px" alt="Success rate versus number of demonstrations">
+      </div>
+      <div>
+        <p class="sub-h">Experiment</p>
+        <p class="def">400 expert demos → train on the first \(N\) → width 512, 30k steps → <b>100 unseen tasks</b>, closed loop.</p>
+        <p class="sub-h" style="margin-top:12px">Reading</p>
+        <p class="def"><b>Diffusion</b> is ahead at every \(N\), most clearly with little data.</p>
+        <p class="def"><b>MLP-BC</b> needs about 3× more demos for the same success.</p>
+        <p class="def"><b>Human demos</b> : aim for <span class="red">at least 100, ideally 200</span>.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Reproduce</b> : tools/imitation_experiments/full/run_scale512.sh (10 jobs, about 15 min)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 27 -->
+<section class="slide" data-title="Closed-Loop Rollouts and Failure Modes">
+  <p class="lead">Both learned policies stay below the expert that taught them</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:800px">
+        <div class="tfig"><img src="assets/figures/il_rollouts_bc.png" style="width:800px" alt="MLP-BC rollouts"><div class="src">MLP-BC rollouts on unseen seeds</div></div>
+        <div class="tfig" style="margin-top:12px"><img src="assets/figures/il_rollouts_diff.png" style="width:800px" alt="Diffusion rollouts"><div class="src">Diffusion Policy rollouts on the same seeds</div></div>
+      </div>
+      <div>
+        <p class="def"><b>MLP-BC</b> : stalls or jitters beside the T — it averages between strategies.</p>
+        <p class="def"><b>Diffusion</b> : commits to one strategy; fails at the final 0.15 m / 10° alignment or after one big mistake.</p>
+        <p class="def"><b>Both</b> : <span class="red">covariate shift</span> — their own errors lead to states never seen in the demos.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Default run (180 demos)</b> : expert 88 % · MLP-BC 38–59 % · Diffusion 54–63 %. Remedy: DAgger — record human corrections.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 28 -->
+<section class="slide" data-title="From Imitation to Reinforcement Learning">
+  <p class="lead">RL needs no demonstrations — only a reward and a great deal of trial and error</p>
+  <div class="content">
+    <div class="eqbox"><div class="eq sm">\[s_t\xrightarrow{\ \pi_\phi(a\mid s)\ }a_t\xrightarrow{\ \text{physics}\ }s_{t+1},\ r_t,\qquad \max_\phi\ \mathbb E\Big[\sum_t\gamma^t r_t\Big]\]</div></div>
+    <table class="t sm" style="margin-top:6px">
+      <tr><th style="width:290px">Experiment</th><th style="width:300px">Starting point</th><th>Result (50 unseen tasks, no exploration noise)</th></tr>
+      <tr><td><b>A. RL from scratch</b></td><td>random network</td><td>16.4M steps (2.5 h): <span class="red">0 % success</span></td></tr>
+      <tr><td><b>B. BC → RL</b></td><td>MLP-BC policy</td><td>42 % → 74 % (3M) → <b>80 %</b> (6M, 80 min)</td></tr>
+      <tr><td>Scripted expert</td><td>hand-written rules</td><td>88 %</td></tr>
+    </table>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def"><b>Why A fails</b> : success needs a long sequence — choose a contact, go around, push, align. Random motion almost never completes it, so the success bonus is <span class="red">never observed</span> (the exploration problem).</p>
+      <p class="def" style="margin:0"><b>Why B works</b> : imitation already succeeds about half the time; RL only has to polish behaviour that works.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 29 -->
+<section class="slide" data-title="Reward Design">
+  <p class="lead">Turn "how far is the task from done" into one number, and reward every step of progress</p>
+  <div class="content">
+    <p class="sub-h">Remaining cost (1 rad ≈ 0.3 m)</p>
+    <div class="eq sm">\[c(s)=\lVert\mathbf x_G-\mathbf x_g\rVert+0.3\,\lvert\theta-\theta_g\rvert\]</div>
+    <p class="sub-h" style="margin-top:10px">Reward per step</p>
+    <div class="eqbox"><div class="eq sm">\[r_t=\underbrace{10\big(c(s_t)-c(s_{t+1})\big)}_{\text{progress}}-\underbrace{0.02\max(\lVert\mathbf x_P-\mathbf x_G\rVert-1,0)}_{\text{far from T}}-\underbrace{0.01}_{\text{time}}+\underbrace{10\cdot\mathbb 1[\text{success}]}_{\text{bonus}}\]</div></div>
+    <div class="two">
+      <div>
+        <p class="def"><b>Potential-based shaping</b> : the progress term sums to \(10\,(c(s_0)-c(s_T))\) — a signal every step, without changing the optimal policy.</p>
+      </div>
+      <div>
+        <p class="def"><b>Episode end</b> : success is terminal; at 300 steps it is truncated and bootstrapped with \(V(s_T)\).</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Side effect</b> : the time penalty makes RL <span class="red">finish faster</span> than the expert, which has no such pressure.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 30 -->
+<section class="slide" data-title="Reward: Equation ↔ Code">
+  <p class="lead">Two short functions — the RL training loop calls them once per environment step</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:520px">
+        <div class="eq sm">\[c(s)=\lVert\mathbf x_G-\mathbf x_g\rVert+0.3\,\lvert\theta-\theta_g\rvert\]</div>
+        <div class="eqbox"><div class="eq sm">\[r_t=10\,\Delta c-0.02\max(\lVert\mathbf x_P-\mathbf x_G\rVert-1,0)\]</div><div class="eq sm">\[\qquad-\,0.01+10\cdot\mathbb 1[\text{success}]\]</div></div>
+        <p class="def">\(\Delta c=c(s_t)-c(s_{t+1})\) : positive when the T moved closer to the goal pose.</p>
+        <p class="def">wrap_angle keeps \(\theta-\theta_g\) in \((-\pi,\pi]\), so \(359^\circ\) counts as \(1^\circ\).</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_rl.py : task_cost · reward</p>
+        <p class="code">def task_cost(sim):</p>
+        <p class="code">    return float(np.linalg.norm(sim.T.pos - sim.goal_pos)</p>
+        <p class="code">        + 0.3 * abs(wrap_angle(sim.T.angle - sim.goal_angle)))</p>
+        <p class="code"> </p>
+        <p class="code">def reward(c_before, c_after, sim, success):</p>
+        <p class="code">    dist_pt = float(np.linalg.norm(sim.pusher.pos - sim.T.pos))</p>
+        <p class="code">    return (10.0 * (c_before - c_after)</p>
+        <p class="code">            - 0.02 * max(dist_pt - 1.0, 0.0)</p>
+        <p class="code">            - 0.01</p>
+        <p class="code">            + (10.0 if success else 0.0))</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 31 -->
+<section class="slide" data-title="PPO: Small, Clipped Policy Updates">
+  <p class="lead">Collect 8,192 steps, estimate advantages, update for 10 epochs — repeat</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:640px">
+        <p class="sub-h">Advantage (GAE), \(\gamma=0.99,\ \lambda=0.95\)</p>
+        <div class="eq sm">\[\delta_t=r_t+\gamma V(s_{t+1})-V(s_t),\quad \hat A_t=\sum_{l\ge0}(\gamma\lambda)^l\delta_{t+l}\]</div>
+        <p class="sub-h" style="margin-top:8px">Clipped objective, \(\rho=\pi_\phi/\pi_{\text{old}}\)</p>
+        <div class="eqbox"><div class="eq sm">\[L=-\mathbb E\big[\min\big(\rho\hat A,\ \mathrm{clip}(\rho,0.8,1.2)\hat A\big)\big]\]</div></div>
+        <p class="def">Gaussian policy \(\mathcal N(\mu_\phi(s),\sigma^2)\): sample while training, use the mean \(\mu_\phi\) for evaluation.</p>
+      </div>
+      <div>
+        <table class="t sm">
+          <tr><th style="width:120px"></th><th style="width:190px">A. scratch</th><th>B. BC → RL</th></tr>
+          <tr><td>Actor</td><td>2 × 256 tanh</td><td>the MLP-BC net</td></tr>
+          <tr><td>Initial \(\sigma\)</td><td>0.6</td><td>0.03 m</td></tr>
+          <tr><td>Actor lr</td><td>\(3\times10^{-4}\)</td><td>\(3\times10^{-5}\)</td></tr>
+          <tr><td>Critic</td><td>new</td><td>new, 10 warm-up updates</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>For B</b> : clipping, a small learning rate and small noise <span class="red">protect the working BC policy</span> from being destroyed early on.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 32 -->
+<section class="slide" data-title="PPO: Equation ↔ Code">
+  <p class="lead">GAE runs backwards through the rollout; the clipped loss is one line</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:470px">
+        <p class="sub-h">Advantage, backwards in time</p>
+        <div class="eq sm">\[\delta_t=r_t+\gamma V(s_{t+1})(1-d_t)-V(s_t)\]</div>
+        <div class="eq sm">\[\hat A_t=\delta_t+\gamma\lambda(1-d_t)\hat A_{t+1}\]</div>
+        <p class="sub-h">Clipped surrogate</p>
+        <div class="eqbox"><div class="eq sm">\[L=-\mathbb E\big[\min(\rho\hat A,\ \mathrm{clip}(\rho,0.8,1.2)\hat A)\big]\]</div></div>
+        <div class="eq sm">\[\rho=\exp\big(\log\pi_\phi(a\mid s)-\log\pi_{\text{old}}(a\mid s)\big)\]</div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">pusht_rl.py : train loop</p>
+        <p class="code">for t in reversed(range(n_steps)):                  <span class="cm"># GAE</span></p>
+        <p class="code">    nv = v_next if t == n_steps - 1 else V[t + 1]</p>
+        <p class="code">    delta = R[t] + gamma * nv * (1 - DONE[t]) - V[t]</p>
+        <p class="code">    g = delta + gamma * lam * (1 - DONE[t]) * g</p>
+        <p class="code">    adv[t] = g</p>
+        <p class="code">RET = ADV + torch.cat(V)                 <span class="cm"># critic target</span></p>
+        <p class="code"> </p>
+        <p class="code">for _ in range(10):                      <span class="cm"># PPO epochs</span></p>
+        <p class="code">    ...</p>
+        <p class="code">    lv = ((model.value(Ob[idx]) - RET[idx]) ** 2).mean()</p>
+        <p class="code">    if it &gt;= critic_warmup:</p>
+        <p class="code">        ratio = (policy_dist(model, Ob[idx]).log_prob(Ab[idx])</p>
+        <p class="code">                 .sum(-1) - LPb[idx]).exp()</p>
+        <p class="code">        la = -torch.min(ratio * ADV[idx],</p>
+        <p class="code">                        ratio.clamp(0.8, 1.2) * ADV[idx]).mean()</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 33 -->
+<section class="slide" data-title="Parallel Simulation">
+  <p class="lead">Pure-Python physics is slow, so 64 environments run at once on 16 CPU processes</p>
+  <div class="content">
+    <div class="row" style="margin-top:4px">
+      <div class="blk t-blue" style="width:380px;height:112px"><span class="nm">Main process</span><span class="en">policy for 64 observations at once</span></div>
+      <div class="arw" style="width:56px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:380px;height:112px"><span class="nm">16 workers × 4 envs</span><span class="en">physics, auto-reset on done</span></div>
+    </div>
+    <div class="two" style="margin-top:26px">
+      <div>
+        <p class="sub-h">Benchmark (idle CPU, 20 cores)</p>
+        <table class="t sm">
+          <tr><td>Steps per PPO iteration</td><td>64 × 128 = 8,192</td></tr>
+          <tr><td>Rollout (physics 3.09 s)</td><td>3.79 s</td></tr>
+          <tr><td>PPO update</td><td>1.91 s (33 %)</td></tr>
+          <tr><td>Env steps / s</td><td>2,159 rollout · <b>1,437</b> total</td></tr>
+        </table>
+      </div>
+      <div>
+        <p class="sub-h">Training wall-clock (from logs)</p>
+        <table class="t sm">
+          <tr><th style="width:230px">Run</th><th style="width:110px">Steps</th><th>Time</th></tr>
+          <tr><td>RL from scratch</td><td>16.4M</td><td>147 min</td></tr>
+          <tr><td>BC+PPO</td><td>0 → 6M</td><td>80 min</td></tr>
+          <tr><td>BC+PPO resumed</td><td>6 → 12M</td><td>70 min</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Backend</b> : CPU multiprocessing (fork + Pipe); the network also runs on the CPU. One environment alone would be <span class="red">≈ 64× slower</span>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 34 -->
+<section class="slide" data-title="RL from Scratch vs BC → RL">
+  <p class="lead">Starting from imitation turns an unsolvable exploration problem into fine-tuning</p>
+  <div class="content">
+    <div class="two">
+      <div class="tfig" style="flex:none;width:700px">
+        <img src="assets/figures/il_rl_curves.png" style="width:700px" alt="RL training curves">
+        <div class="src">Training success with exploration noise (tutorial/checkpoints/rl/*/train_log*.txt)</div>
+      </div>
+      <div>
+        <p class="def"><b>From scratch</b> : return improved −14 → −2.4, the T moves toward the goal, but <span class="red">0 % success</span>; exploration noise collapsed 0.6 → 0.03.</p>
+        <p class="def"><b>BC → RL</b> : 0.44 → 0.88 in 6M steps, then a plateau at 0.87–0.90.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Lesson</b> : demonstrations solve exploration; RL then optimizes what imitation cannot — the reward itself.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 35 -->
+<section class="slide" data-title="Paired Evaluation on Seeds 0–99">
+  <p class="lead">Same 100 unseen tasks, same start, 300 steps, deterministic actions for every policy</p>
+  <div class="content">
+    <div class="two">
+      <div class="tfig" style="flex:none;width:690px">
+        <img src="assets/figures/il_paired.png" style="width:690px" alt="Success rate and time to success">
+        <div class="src">pusht_rl_eval.py → tutorial/eval_results/paired_*.csv / .json</div>
+      </div>
+      <div>
+        <table class="t sm">
+          <tr><th style="width:230px">Scripted vs BC+PPO</th><th style="width:85px">6M</th><th>12M</th></tr>
+          <tr><td>both succeed</td><td>74</td><td>70</td></tr>
+          <tr><td>only scripted</td><td>13</td><td>17</td></tr>
+          <tr><td>only BC+PPO</td><td>8</td><td>7</td></tr>
+          <tr><td>both fail</td><td>5</td><td>6</td></tr>
+          <tr><td>McNemar \(p\)</td><td>0.38</td><td>0.064</td></tr>
+          <tr><td>median steps*</td><td>136 → <b>107</b></td><td>139 → <b>104</b></td></tr>
+        </table>
+        <p class="cap">* on seeds both solved: scripted → BC+PPO</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Result</b> : success is <span class="red">statistically tied with the expert</span>, and BC+PPO is about 3–4 s faster on the same tasks.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 36 -->
+<section class="slide" data-title="Why BC+PPO Stops Near the Expert">
+  <p class="lead">More training made the policy faster, not more successful</p>
+  <div class="content">
+    <div class="two">
+      <div>
+        <p class="sub-h">Measured</p>
+        <p class="def"><b>Within noise</b> : at 82 %, one standard error is about ±4 points with 100 tasks.</p>
+        <p class="def"><b>6M → 12M</b> : success 82 % → 77 %, mean time 12.0 s → 11.1 s.</p>
+        <p class="def"><b>Plateau</b> : training success stayed at 0.87–0.90 with noise \(\sigma\to0.005\).</p>
+        <p class="def"><b>Best checkpoint</b> : 6M, not the newest 12M.</p>
+      </div>
+      <div>
+        <p class="sub-h">Likely structural limits (not yet tested)</p>
+        <p class="def"><b>Less information</b> : 12 inputs vs. the expert's full state and memory.</p>
+        <p class="def"><b>Conservative updates</b> : lr \(3\times10^{-5}\), clipping, small \(\sigma\).</p>
+        <p class="def"><b>Reward ≠ success test</b> : angle weighted 0.3; success needs 0.15 m <i>and</i> 10°.</p>
+        <p class="def"><b>One step at a time</b> : BC drops 54 % → 34 % without chunks.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Not a ceiling</b> : RL optimizes the reward, not imitation — <span class="red">align the reward with the success test</span> to push further.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 37 -->
+<section class="slide" data-title="Real-Time Demo: Five Policies, One Task">
+  <p class="lead">python pusht_rl_realtime.py — every panel replays the same random task live</p>
+  <div class="content">
+    <div class="two">
+      <div class="tfig" style="flex:none;width:760px">
+        <img src="assets/figures/il_realtime.png" style="width:760px" alt="Five-panel real-time demo">
+        <div class="src">Seed 30: script 8.7 s · BC→RL 6.4 / 6.2 s · BC and RL-from-scratch time out</div>
+      </div>
+      <div>
+        <p class="sub-h">Run</p>
+        <p class="code">cd tutorial</p>
+        <p class="code">python pusht_rl_realtime.py</p>
+        <p class="code">python pusht_rl_realtime.py script</p>
+        <p class="code">python pusht_rl.py eval</p>
+        <p class="code">python pusht_rl_eval.py</p>
+        <p class="sub-h" style="margin-top:14px">Keys</p>
+        <p class="def">Space pause · N next task · + / − speed · Q quit</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 38 -->
+<section class="slide" data-title="Summary">
+  <p class="lead">Physics gives the data, imitation gives the start, RL gives the polish</p>
+  <div class="content">
+    <ul class="lec">
+      <li>Imitation learning = supervised learning on \((o_t,\mathbf a_{t:t+H})\) from successful demonstrations
+        <ul><li>Goal frame (relative motion) and action offsets matter as much as the model</li></ul>
+      </li>
+      <li>Data: about 100 demos for Diffusion Policy; collect 100–200 human demos</li>
+      <li>Model: MSE learns \(\mathbb E[a\mid o]\); <span class="red">Diffusion learns the distribution</span> and handles multimodality
+        <ul><li>Measured: Diffusion 20–68 % vs MLP-BC 9–59 % (25–360 demos)</li></ul>
+      </li>
+      <li>RL from scratch: 0 % after 16M steps — the exploration problem
+        <ul><li>BC → PPO: 54 % → 82 % on seeds 0–99, tied with the expert (87 %) and 3–4 s faster</li></ul>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====================================================================== 39 -->
+<section class="slide" data-title="Try It Yourself">
+  <p class="lead">Exercises with the tutorial code</p>
+  <div class="content">
+    <ul class="lec">
+      <li><b>Human data</b> : collect 50, then 100 demos — does the Diffusion vs MLP-BC gap grow?</li>
+      <li><b>No goal frame</b> : train in world coordinates — how much success is lost?</li>
+      <li><b>Chunks</b> : vary the prediction / execution horizons (1, 4, 8, 16)</li>
+      <li><b>History</b> : one observation frame — which mistakes appear without velocity?</li>
+      <li><b>DAgger</b> : record your corrections in the viewer and retrain</li>
+      <li><b>Robustness</b> : evaluate with friction 0.2 instead of 0.4 — think domain randomization</li>
+      <li><b>RL</b> : put the 0.15 m / 10° test into the reward — does BC+PPO pass the expert?</li>
+    </ul>
+  </div>
+</section>
+
+</div></div>
+
+<div id="hud"><b id="hud-n">1</b> / <span id="hud-t">22</span></div>
+<div id="help">← → navigate · O overview · F fullscreen · Ctrl+P print (PDF)</div>
+
+<script>
+(function(){
+  var deck   = document.getElementById('deck');
+  var slides = Array.prototype.slice.call(deck.querySelectorAll('.slide'));
+  var idx = 0;
+
+  // ---- inject slide chrome (title bar · mark · footer · number) ------------
+  var CREDIT = 'Sookmyung Women’s Univ. Autonomous Mechanical Systems Lab';
+  slides.forEach(function(s, i){
+    if (s.classList.contains('cover')) return;
+    var bar = document.createElement('div'); bar.className = 'bar';
+    var h2  = document.createElement('h2');  h2.textContent = s.dataset.title || '';
+    var mk  = document.createElement('img'); mk.className = 'mark'; mk.alt = '';
+    mk.src  = 'assets/logo/smwu-logo-mark-mono.png';
+    s.insertBefore(mk, s.firstChild);
+    s.insertBefore(h2, s.firstChild);
+    s.insertBefore(bar, s.firstChild);
+    var f  = document.createElement('div'); f.className  = 'foot';
+    var nb = document.createElement('div'); nb.className = 'foot-num-band';
+    var cr = document.createElement('div'); cr.className = 'foot-credit'; cr.textContent = CREDIT;
+    var nu = document.createElement('div'); nu.className = 'foot-num';    nu.textContent = String(i + 1);
+    s.appendChild(f); s.appendChild(nb); s.appendChild(cr); s.appendChild(nu);
+  });
+  document.getElementById('hud-t').textContent = String(slides.length);
+
+  // ---- math -----------------------------------------------------------------
+  function renderMath(){
+    if (!window.renderMathInElement) return false;
+    renderMathInElement(deck, {
+      delimiters: [{left:'\\[', right:'\\]', display:true}, {left:'\\(', right:'\\)', display:false}],
+      throwOnError: false
+    });
+    document.body.setAttribute('data-math', 'done');
+    return true;
+  }
+  window.addEventListener('DOMContentLoaded', renderMath);
+
+  // ---- fit to viewport --------------------------------------------------------
+  function fit(){
+    if (document.body.classList.contains('overview')) { deck.style.transform = 'none'; return; }
+    var s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    deck.style.transform = 'scale(' + s + ')';
+  }
+  function show(n){
+    idx = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function(s, i){ s.classList.toggle('is-active', i === idx); });
+    document.getElementById('hud-n').textContent = String(idx + 1);
+    if (document.body.classList.contains('overview')) slides[idx].scrollIntoView({block: 'nearest'});
+    if (location.hash !== '#' + (idx + 1)) history.replaceState(null, '', '#' + (idx + 1));
+  }
+  function toggleOverview(){ document.body.classList.toggle('overview'); fit(); show(idx); }
+
+  document.addEventListener('keydown', function(e){
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    switch (e.key) {
+      case 'ArrowRight': case 'PageDown': case ' ': case 'Enter': show(idx + 1); e.preventDefault(); break;
+      case 'ArrowLeft': case 'PageUp': case 'Backspace': show(idx - 1); e.preventDefault(); break;
+      case 'Home': show(0); e.preventDefault(); break;
+      case 'End':  show(slides.length - 1); e.preventDefault(); break;
+      case 'o': case 'O': toggleOverview(); e.preventDefault(); break;
+      case 'f': case 'F':
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen();
+        e.preventDefault(); break;
+      case 'Escape':
+        if (document.body.classList.contains('overview')) { toggleOverview(); e.preventDefault(); }
+        break;
+    }
+  });
+  deck.addEventListener('click', function(e){
+    if (!document.body.classList.contains('overview')) return;
+    var s = e.target.closest('.slide');
+    if (s) { toggleOverview(); show(slides.indexOf(s)); }
+  });
+  window.addEventListener('resize', fit);
+  window.addEventListener('hashchange', function(){
+    var n = parseInt(location.hash.slice(1), 10);
+    if (!isNaN(n)) show(n - 1);
+  });
+
+  var start = parseInt(location.hash.slice(1), 10);
+  fit();
+  show(isNaN(start) ? 0 : start - 1);
+  setTimeout(function(){ document.getElementById('help').classList.add('faded'); }, 6000);
+
+  // ---- layout export for the PPTX build (?export) -----------------------------
+  if (/(\?|&)export\b/.test(location.search)) {
+    var ex = document.createElement('script');
+    ex.src = '../tools/export_layout.js';
+    document.body.appendChild(ex);
+  }
+
+  // ---- overflow audit (?audit) ------------------------------------------------
+  if (/(\?|&)audit\b/.test(location.search)) {
+    setTimeout(function(){
+      var rows = [];
+      slides.forEach(function(s, i){
+        var was = s.style.display;
+        s.style.display = 'block';
+        var c = s.querySelector('.content');
+        var over = c ? Math.round(c.scrollHeight - c.clientHeight) : 0;
+        // absolutely-positioned footers inside .content: check they clear the other content
+        var kids = c ? Array.prototype.slice.call(c.children) : [];
+        var absK = kids.filter(function(k){ return k.classList.contains('abs') && k.style.bottom; });
+        var flow = kids.filter(function(k){ return getComputedStyle(k).position !== 'absolute'; });
+        var clash = 0;
+        absK.forEach(function(a){
+          var at = a.getBoundingClientRect().top;
+          flow.forEach(function(k){ clash = Math.max(clash, Math.round(k.getBoundingClientRect().bottom - at)); });
+        });
+        s.style.display = was;
+        rows.push({n: i + 1, t: s.dataset.title || 'Cover', over: over, clash: clash});
+      });
+      var bad = rows.filter(function(r){ return r.over > 1 || r.clash > 0; });
+      var box = document.createElement('pre');
+      box.id = 'audit';
+      box.style.cssText = 'position:fixed;inset:0;z-index:99;margin:0;padding:24px;' +
+        'background:#fff;color:#111;font:13px/1.55 Consolas,monospace;overflow:auto';
+      box.textContent = 'OVERFLOW AUDIT  —  ' + bad.length + ' / ' + rows.length + ' slides flagged\n\n' +
+        rows.map(function(r){
+          return ((r.over > 1 || r.clash > 0) ? '  BAD  ' : '   ok  ') + String(r.n).padStart(3) +
+                 '  over ' + String(r.over).padStart(4) + '  clash ' + String(r.clash).padStart(4) + '   ' + r.t;
+        }).join('\n');
+      document.body.appendChild(box);
+    }, 2500);
+  }
+})();
+</script>
+</body>
+</html>

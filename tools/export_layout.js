@@ -55,7 +55,8 @@
     var runs = [];
     function walk(node) {
       if (node.nodeType === 3) {
-        var t = node.textContent.replace(/\s+/g, ' ');
+        var keep = !!node.parentElement.closest('.code');     // code listings keep their indentation
+        var t = keep ? node.textContent.replace(/\n/g, '') : node.textContent.replace(/\s+/g, ' ');
         if (t) {
           var r = runStyle(node.parentElement); r.t = t; runs.push(r);
         }
@@ -82,9 +83,10 @@
     // trim leading/trailing whitespace runs
     while (runs.length && runs[0].t !== undefined && !runs[0].t.trim()) runs.shift();
     while (runs.length && runs[runs.length - 1].br) runs.pop();
-    if (runs.length && runs[0].t) runs[0].t = runs[0].t.replace(/^\s+/, '');
+    var code = block.classList && block.classList.contains('code');
+    if (runs.length && runs[0].t && !code) runs[0].t = runs[0].t.replace(/^\s+/, '');
     var last = runs[runs.length - 1];
-    if (last && last.t) last.t = last.t.replace(/\s+$/, '');
+    if (last && last.t && !code) last.t = last.t.replace(/\s+$/, '');
     return runs;
   }
 
@@ -114,7 +116,7 @@
 
   // Blocks exported as one text item each
   var TEXT_SEL = [
-    'p.lead', 'p.def', 'p.sub-h', 'p.cap', 'div.eq', '.eqlabel', '.flab', '.tfig .src', '.dlabel',
+    'p.lead', 'p.def', 'p.sub-h', 'p.cap', 'p.code', 'div.eq', '.eqlabel', '.flab', '.tfig .src', '.dlabel',
     '.blk > span', '.op-oval', '.op-txt', 'th', 'td',
     '.eqgrid .n', '.eqgrid .k', '.eqgrid .m',
     '.cover h1', '.cover .meta > div', '.cover .sub'

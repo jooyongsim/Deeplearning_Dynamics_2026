@@ -1,0 +1,54 @@
+{
+  "short_benchmark": {
+    "backend": "CPU multiprocessing (multiprocessing.Pipe workers, start method 'fork')",
+    "processes": 16,
+    "envs_per_process": 4,
+    "total_envs": 64,
+    "worker_pids": [
+      2935317,
+      2935309,
+      2935311,
+      2935320,
+      "..."
+    ],
+    "cpu_cores": 20,
+    "spawn_time_s": 0.05931698810309172,
+    "model_device": "cpu",
+    "ppo_iterations": 10,
+    "env_steps": 81920,
+    "steps_per_iteration": 8192,
+    "wall_clock_s": 57.57892034621909,
+    "rollout_s_per_iter": 3.7939950089901684,
+    "ppo_update_s_per_iter": 1.9052913425955922,
+    "env_step_s_per_iter (inside ParallelEnvs.step)": 3.085080680018291,
+    "env_steps_per_s (rollout only)": 2159.2015752757748,
+    "env_steps_per_s (overall incl. update)": 1437.3729436705125,
+    "update_fraction_of_time": 0.3343034943428429
+  },
+  "from_training_logs": {
+    "RL from scratch": {
+      "logged_steps_M": [
+        0.04,
+        16.42
+      ],
+      "wall_clock_min": 147.1,
+      "avg_env_steps_per_s_incl_updates": 1860.9406952965237
+    },
+    "BC+PPO run 1 (0 -> 6M)": {
+      "logged_steps_M": [
+        0.04,
+        5.98
+      ],
+      "wall_clock_min": 79.7,
+      "avg_env_steps_per_s_incl_updates": 1248.4237074401008
+    },
+    "BC+PPO resumed (6M -> )": {
+      "logged_steps_M": [
+        6.04,
+        11.98
+      ],
+      "wall_clock_min": 69.7,
+      "avg_env_steps_per_s_incl_updates": 1428.5714285714287
+    }
+  }
+}

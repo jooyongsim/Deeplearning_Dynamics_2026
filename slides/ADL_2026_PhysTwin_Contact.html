@@ -1,0 +1,1021 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADL 2026 · Digital Twin Simulation: Spring–Mass Model and Frictional Contact</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<style>
+/* ==========================================================================
+   AMSL Lecture Design System — tokens (copied from tokens/*.css)
+   ========================================================================== */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Arimo:ital,wght@0,400;0,700;1,400;1,700&display=swap");
+@font-face{font-family:"Pretendard";font-style:normal;font-weight:600;font-display:swap;src:url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-SemiBold.woff2") format("woff2")}
+@font-face{font-family:"Pretendard";font-style:normal;font-weight:900;font-display:swap;src:url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/Pretendard-Black.woff2") format("woff2")}
+
+:root{
+  --navy-900:#203864; --navy-700:#2774B8; --navy-400:#5B9BD5;
+  --navy-200:#B4C3D6; --navy-050:#D9EEFC;
+  --ink-1000:#000000; --ink-900:#111111; --ink-600:#404040; --ink-300:#A5A5A5;
+  --paper-200:#E7E6E6; --paper-000:#FFFFFF;
+  --dia-blue-fill:#D9EEFC;   --dia-blue-line:#2774B8;
+  --dia-green-fill:#E4F4E4;  --dia-green-line:#3D8C54;
+  --dia-orange-fill:#FFEBC9; --dia-orange-line:#E97820;
+  --dia-purple-fill:#EADCF5; --dia-purple-line:#6D237C;
+  --emphasis-red:#FF0000;
+  --font-display:"Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;
+  --font-core:Arial,"Arimo","Malgun Gothic",Helvetica,sans-serif;
+  --font-hangul:"Noto Sans KR","Malgun Gothic",sans-serif;
+  --font-mono:Consolas,"Courier New",monospace;
+  --type-slide-title:37.33px; --type-lead:26.67px;
+  --type-body-1:32px; --type-body-2:26.67px; --type-body-3:24px;
+  --type-diagram-ko:26.67px; --type-diagram-en:21.33px;
+  --type-footer:16px; --type-slide-number:24px;
+  --radius-block:14px; --stroke-diagram:4px; --stroke-arrow:8px;
+}
+
+/* ========================================================== viewer chrome */
+html,body{margin:0;height:100%;background:var(--paper-200);font-family:var(--font-core)}
+#viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#deck{width:1280px;height:720px;transform-origin:center center;position:relative}
+.slide{position:absolute;inset:0;width:1280px;height:720px;background:var(--paper-000);overflow:hidden;display:none}
+.slide.is-active{display:block}
+#hud{position:fixed;right:10px;top:6px;z-index:40;font:400 13px var(--font-core);color:var(--ink-600);
+     background:rgba(255,255,255,.9);padding:3px 8px;border:1px solid var(--navy-200)}
+#hud b{color:var(--navy-900)}
+#help{position:fixed;left:10px;top:6px;z-index:40;font:400 12.5px var(--font-core);color:var(--ink-600);
+      background:rgba(255,255,255,.9);padding:3px 8px;border:1px solid var(--navy-200);transition:opacity .4s}
+#help.faded{opacity:0;pointer-events:none}
+
+body.overview #viewport{align-items:flex-start;justify-content:flex-start;overflow:auto;padding:18px}
+body.overview #deck{width:auto;height:auto;transform:none!important;display:grid;
+     grid-template-columns:repeat(auto-fill,320px);gap:14px}
+body.overview .slide{position:relative;display:block;inset:auto;
+     transform:scale(.25);transform-origin:top left;width:1280px;height:720px;
+     margin:0 -960px -540px 0;outline:1px solid var(--navy-200);cursor:pointer}
+body.overview .slide.is-active{outline:3px solid var(--navy-900)}
+
+/* ==================================================== content-slide chrome */
+.bar{position:absolute;left:20.9px;top:13.5px;width:9.8px;height:63.4px;background:var(--navy-900)}
+.slide > h2{position:absolute;left:46px;top:13.5px;right:88px;height:63.4px;margin:0;display:flex;
+     align-items:center;font:700 var(--type-slide-title)/.9 var(--font-core);
+     color:var(--navy-900);letter-spacing:-.01em}
+.mark{position:absolute;left:1198.7px;top:14.4px;width:62px;height:62px;opacity:.5;
+     filter:grayscale(1) brightness(1.1) sepia(1) hue-rotate(178deg) saturate(3.2)}
+.foot{position:absolute;left:0;right:0;top:694.2px;height:26.5px;background:var(--navy-900)}
+.foot-num-band{position:absolute;right:0;top:694.2px;width:331.6px;height:26.5px;background:var(--navy-200)}
+.foot-credit{position:absolute;left:8px;top:694.2px;height:26.5px;display:flex;align-items:center;
+     font:italic 700 var(--type-footer)/1 var(--font-core);color:#fff}
+.foot-num{position:absolute;left:1215.9px;width:63.2px;top:694.2px;height:26.5px;display:flex;
+     align-items:center;justify-content:center;
+     font:700 var(--type-slide-number)/1 var(--font-core);color:var(--ink-600)}
+
+.lead{position:absolute;left:48.4px;top:98px;right:40px;margin:0;
+     font:700 var(--type-lead)/1.15 var(--font-core);color:var(--ink-1000)}
+.content{position:absolute;left:23px;right:23px;top:150px;bottom:30px}
+.content.nolead{top:92px}
+
+/* ======================================================== body type */
+.body{font:400 var(--type-body-3)/1.34 var(--font-core);color:var(--ink-1000)}
+ul.lec{list-style:none;margin:0;padding:0}
+ul.lec > li{position:relative;padding-left:24px;margin-bottom:14px;
+     font:400 var(--type-body-2)/1.25 var(--font-core);color:var(--ink-1000)}
+ul.lec > li::before{content:"\2022";position:absolute;left:2px;color:var(--ink-1000)}
+ul.lec ul{list-style:none;margin:6px 0 0;padding:0}
+ul.lec ul > li{position:relative;padding-left:28px;margin-bottom:5px;
+     font:400 var(--type-body-3)/1.25 var(--font-core)}
+ul.lec ul > li::before{content:"\2192";position:absolute;left:2px;font-family:var(--font-core)}
+p.def{margin:0 0 14px;font:400 var(--type-body-3)/1.34 var(--font-core);color:var(--ink-1000)}
+p.def > b{font-style:italic;font-weight:700}
+.red{color:var(--emphasis-red)}
+.dim{color:var(--ink-600)}
+.cap{margin:8px 0 0;font:400 19px/1.25 var(--font-core);color:var(--ink-600)}
+.sub-h{margin:0 0 8px;font:700 22px/1.2 var(--font-core);color:var(--navy-900)}
+
+/* equations (KaTeX) — navy keyline on the left marks the key result */
+.katex{font-size:1.1em;color:inherit}
+.eq{margin:0 0 8px;font:400 29px/1.45 var(--font-core);color:var(--ink-1000)}
+.eq.sm{font-size:25px}
+.eq .katex-display{margin:.2em 0;text-align:left}
+.eq .katex-display > .katex{text-align:left}
+.eqbox{border-left:var(--stroke-diagram) solid var(--navy-900);padding:6px 0 6px 20px;margin:0 0 16px}
+.eqbox .eq:last-child{margin-bottom:0}
+.eqlabel{display:inline-block;min-width:190px;font:700 21px/1 var(--font-core);color:var(--navy-900)}
+
+/* tables — hairline only, no fills */
+table.t{border-collapse:collapse;width:100%;font:400 21px/1.28 var(--font-core);color:var(--ink-1000)}
+table.t th{text-align:left;font-weight:700;color:var(--navy-900);padding:7px 14px 7px 0;
+     border-bottom:2px solid var(--navy-900);vertical-align:bottom}
+table.t td{padding:8px 14px 8px 0;border-bottom:1px solid var(--paper-200);vertical-align:middle}
+table.t.sm{font-size:19.5px}
+table.t tr:last-child td{border-bottom:none}
+
+/* layout helpers */
+.two{display:flex;gap:34px;align-items:flex-start}
+.two > *{flex:1;min-width:0}
+.fig{position:relative}
+.fig svg{display:block}
+.flab{position:absolute;font:400 22px/1 var(--font-core);color:var(--ink-900);white-space:nowrap}
+
+/* diagram blocks */
+.row{display:flex;align-items:center;justify-content:center}
+.blk{box-sizing:border-box;border-radius:var(--radius-block);border:var(--stroke-diagram) solid;
+     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+     padding:0 12px;text-align:center}
+.blk .nm{font:700 var(--type-diagram-ko)/1.05 var(--font-core);color:var(--ink-900)}
+.blk .en{font:400 var(--type-diagram-en)/1.15 var(--font-core);color:var(--ink-900)}
+.blk .sub{font:400 19px/1.2 var(--font-core);color:var(--ink-600)}
+.t-blue{background:var(--dia-blue-fill);border-color:var(--dia-blue-line)}
+.t-green{background:var(--dia-green-fill);border-color:var(--dia-green-line)}
+.t-orange{background:var(--dia-orange-fill);border-color:var(--dia-orange-line)}
+.t-purple{background:var(--dia-purple-fill);border-color:var(--dia-purple-line)}
+.abs{position:absolute}
+.arw{height:var(--stroke-arrow);background:var(--ink-900);position:relative;flex:0 0 auto}
+.arw::after{content:"";position:absolute;right:-16px;top:-9px;
+     border-left:17px solid var(--ink-900);border-top:13px solid transparent;border-bottom:13px solid transparent}
+.vline{width:var(--stroke-arrow);background:var(--ink-900);position:absolute}
+.hline{height:var(--stroke-arrow);background:var(--ink-900);position:absolute}
+.tri-d{position:absolute;width:0;height:0;border-top:17px solid var(--ink-900);
+     border-left:13px solid transparent;border-right:13px solid transparent}
+.op-oval{box-sizing:border-box;width:58px;height:58px;border:2px solid var(--ink-900);border-radius:50%;
+     display:flex;align-items:center;justify-content:center;font:400 34px/1 var(--font-core);color:var(--ink-900);
+     flex:0 0 auto}
+.op-txt{font:400 40px/1 var(--font-core);color:var(--ink-900);padding:0 16px}
+
+/* equation grid (slide: ten equations) */
+.eqgrid{display:grid;grid-template-columns:.9fr 1.1fr;column-gap:40px;row-gap:0}
+.eqgrid > div{display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid var(--paper-200)}
+.eqgrid .n{flex:0 0 34px;font:700 22px/1 var(--font-core);color:var(--navy-900)}
+.eqgrid .k{flex:0 0 180px;font:400 19px/1.2 var(--font-core);color:var(--ink-600)}
+.eqgrid .m{font-size:22px;white-space:nowrap}
+
+/* textbook figures — placed at natural aspect, source named underneath */
+.tfig{display:flex;flex-direction:column;align-items:center}
+.tfig img{display:block;object-fit:contain}
+.tfig .src{margin-top:6px;font:400 16px/1.2 var(--font-core);color:var(--ink-600);text-align:center}
+
+p.code{margin:0 0 6px;font:400 19px/1.3 var(--font-mono);color:var(--navy-900);border-left:var(--stroke-diagram) solid var(--navy-200);padding:2px 0 2px 12px}
+.codebox{border-left:var(--stroke-diagram) solid var(--navy-200);padding:0 0 4px 14px;min-width:0}
+.codebox p.code{border:none;padding:0;margin:0;white-space:pre;font-size:15.5px;line-height:1.36;color:var(--ink-900)}
+.codebox p.code-file{margin:0 0 8px;font:700 16px/1.2 var(--font-core);color:var(--navy-700)}
+.code .cm{color:var(--dia-green-line)}
+
+/* ======================================================================= cover */
+.slide.cover{background:var(--navy-900)}
+.cover .rule{position:absolute;left:35.5px;width:1209px;height:8.25px;background:rgba(255,255,255,.6)}
+.cover .rule.top{top:59.1px}
+.cover .rule.bot{top:663.7px}
+.cover .mark-lg{position:absolute;left:1075.8px;top:460.9px;width:138px;height:137.6px;opacity:.5;
+     filter:grayscale(1) brightness(2.4) contrast(1.6)}
+.cover .title-box{position:absolute;left:36px;top:117.8px;width:1209px;height:228.8px;
+     display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+.cover h1{margin:0;text-align:center;font:900 52px/1.02 var(--font-display);color:#fff}
+.cover .meta{position:absolute;left:35.5px;top:419px;width:960px;display:flex;flex-direction:column;
+     gap:2px;font:600 32px/1.1 var(--font-display);color:#fff}
+.cover .sub{position:absolute;left:35.5px;top:600px;width:1000px;
+     font:400 21px/1.35 var(--font-core);color:rgba(255,255,255,.75)}
+
+/* ======================================================================= print */
+@page{size:1280px 720px;margin:0}
+@media print{
+  html,body{background:#fff;height:auto}
+  #viewport{position:static;display:block;overflow:visible}
+  #deck{transform:none!important;width:1280px;height:auto}
+  .slide{position:relative;display:block!important;inset:auto;page-break-after:always;break-after:page}
+  #hud,#help{display:none}
+}
+</style>
+</head>
+<body>
+<div id="viewport"><div id="deck">
+
+<!-- ====================================================================== 01 -->
+<section class="slide cover" data-title="Cover">
+  <div class="rule top"></div><div class="rule bot"></div>
+  <img class="mark-lg" src="assets/logo/smwu-logo-mark-mono.png" alt="">
+  <div class="title-box">
+    <h1>Simulating a Digital Twin:<br>Spring–Mass Model and Frictional Contact</h1>
+  </div>
+  <div class="meta"><div>Department of Mechanical Engineering</div><div>Advanced Deep Learning 2026</div><div>Joo Yong Sim</div></div>
+  <div class="sub">PhysTwin and real2sim-eval read line by line — with measurements from our own experiments on a rope</div>
+</section>
+
+<!-- ====================================================================== 02 -->
+<section class="slide" data-title="Lecture Goals: From Video to a Simulator">
+  <p class="lead">A digital twin is a physics model that a robot can push, grasp and learn on</p>
+  <div class="content">
+    <div class="row" style="margin-top:10px">
+      <div class="blk t-blue" style="width:250px;height:124px"><span class="nm">Observation</span><span class="en">3 RGB-D cameras</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:250px;height:124px"><span class="nm">Particles</span><span class="en">+ spring graph</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-green" style="width:250px;height:124px"><span class="nm">Physics</span><span class="en">springs · contact · ground</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-purple" style="width:250px;height:124px"><span class="nm">Robot learning</span><span class="en">teleop · RL · evaluation</span></div>
+    </div>
+    <div class="abs" style="left:0;right:0;top:186px">
+      <p class="sub-h">Three questions for this lecture</p>
+      <p class="def"><b>Q1 — Simulation model</b> : how does a cloud of particles behave like a rope? (springs, dashpots, drag, integrator)</p>
+      <p class="def"><b>Q2 — Contact model</b> : how do the ground, the rope itself and a robot gripper push back — and how is friction written?</p>
+      <p class="def"><b>Q3 — Cost and consequences</b> : what makes it slow, and what does contact do to repeatability and learning?</p>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Sources</b> : PhysTwin (arXiv 2503.17973) · real2sim-eval (arXiv 2511.04665) · <span class="red">our projects 13–21 on the released rope twin</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 03 -->
+<section class="slide" data-title="Two Simulators, One Spring Network">
+  <p class="lead">Same particles and springs; they differ in how the hand or gripper touches the object</p>
+  <div class="content">
+    <table class="t sm">
+      <tr><th style="width:290px">&nbsp;</th><th style="width:430px">PhysTwin</th><th>real2sim-eval</th></tr>
+      <tr><td>Purpose</td><td>fit physics to a video (system ID)</td><td>evaluate robot policies</td></tr>
+      <tr><td>Hand / gripper</td><td>control points <b>welded by springs</b></td><td>finger <b>triangle mesh, frictional contact</b></td></tr>
+      <tr><td>Can the object slip or drop?</td><td>no — the springs never release</td><td>yes — held only by friction</td></tr>
+      <tr><td>Gradients</td><td>differentiable (Warp tape)</td><td>forward only, overwritten in place</td></tr>
+      <tr><td>Self-collision distance</td><td>0.02 m (off for real data)</td><td>0.005 m (on)</td></tr>
+      <tr><td>Time step</td><td colspan="2">\(\Delta t=5\times10^{-5}\) s, \(\ 667\) substeps per 30 fps frame (both)</td></tr>
+      <tr><td>Rope twin (rope_0001)</td><td colspan="2">2,002 particles · 17,048 object springs · 514 mm long · 31.5 mm across</td></tr>
+    </table>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>real2sim-eval §III-C</b> : “we avoid the common but unrealistic practice of fixing object nodes to the gripper.” <span class="red">Everything about contact in this lecture follows from that choice.</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 04 -->
+<section class="slide" data-title="State and the Spring Graph">
+  <p class="lead">Every particle has \(\mathbf x,\ \mathbf v,\ m=1\); springs join neighbours found at frame 0</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:520px">
+        <p class="sub-h">Neighbour search (KD-tree)</p>
+        <div class="eq sm">\[\mathcal S=\{(i,j):\ \lVert\mathbf p_i-\mathbf p_j\rVert&lt;r,\ \ j\in\text{kNN}_{K}(i)\}\]</div>
+        <p class="def">Defaults \(r=0.02\) m, \(K=30\); the released rope uses \(r=27.4\) mm, \(K=16\).</p>
+        <p class="sub-h">Rest length — frozen at frame 0</p>
+        <div class="eqbox"><div class="eq sm">\[L_{0,ij}=\lVert\mathbf p_i-\mathbf p_j\rVert_{t=0},\qquad L_0&gt;10^{-4}\]</div></div>
+        <table class="t sm">
+          <tr><th style="width:260px">Rope particles</th><th>Count</th></tr>
+          <tr><td>tracked (from video)</td><td>1,495</td></tr>
+          <tr><td>surface + interior (filled)</td><td>288 + 219</td></tr>
+          <tr><td>median spacing</td><td>3.06 mm</td></tr>
+        </table>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">PhysTwin qqtt/engine/trainer_warp.py : spring construction</p>
+        <p class="code">pcd_tree = o3d.geometry.KDTreeFlann(object_pcd)</p>
+        <p class="code">for i in range(len(points)):</p>
+        <p class="code">    [k, idx, _] = pcd_tree.search_hybrid_vector_3d(</p>
+        <p class="code">        points[i], object_radius, object_max_neighbours)</p>
+        <p class="code">    for j in idx[1:]:</p>
+        <p class="code">        rest = np.linalg.norm(points[i] - points[j])</p>
+        <p class="code">        if (i, j) not in seen and rest &gt; 1e-4:</p>
+        <p class="code">            springs.append([i, j])</p>
+        <p class="code">            rest_lengths.append(rest)</p>
+        <p class="code"> </p>
+        <p class="code">masses = np.ones(len(points))   <span class="cm"># all particles m = 1</span></p>
+        <p class="code"> </p>
+        <p class="code"><span class="cm"># repeat 2 (projects 17, 21): 4,004 particles,</span></p>
+        <p class="code"><span class="cm">#   34,090 springs; scaling tests up to 100,100</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 05 -->
+<section class="slide" data-title="Spring–Dashpot Force on Each Edge">
+  <p class="lead">Hooke's law on strain plus a dashpot along the spring — equal and opposite on the two ends</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:500px">
+        <p class="sub-h">Unit direction and strain</p>
+        <div class="eq sm">\[\mathbf d=\frac{\mathbf x_j-\mathbf x_i}{\lVert\mathbf x_j-\mathbf x_i\rVert},\qquad \varepsilon=\frac{\lVert\mathbf x_j-\mathbf x_i\rVert}{L_0}-1\]</div>
+        <p class="sub-h">Spring + axial dashpot</p>
+        <div class="eqbox"><div class="eq sm">\[\mathbf F_{ij}=k\,\varepsilon\,\mathbf d+c\,\big[(\mathbf v_j-\mathbf v_i)\cdot\mathbf d\big]\,\mathbf d\]</div></div>
+        <div class="eq sm">\[\mathbf f_i\mathrel{+}=\mathbf F_{ij},\qquad \mathbf f_j\mathrel{-}=\mathbf F_{ij}\]</div>
+        <p class="def">\(k\) multiplies a <i>strain</i>, so it acts like \(E\cdot A\), not N/m. Dashpot \(c=100\).</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">real2sim-eval sim/physics/spring_mass_warp.py : eval_springs</p>
+        <p class="code">tid = wp.tid()                     <span class="cm"># one thread per spring</span></p>
+        <p class="code">if wp.exp(spring_Y[tid]) &gt; spring_Y_min:</p>
+        <p class="code">    dis = x2 - x1</p>
+        <p class="code">    dis_len = wp.length(dis)</p>
+        <p class="code">    d = dis / wp.max(dis_len, 1e-6)</p>
+        <p class="code">    spring_force = (</p>
+        <p class="code">        wp.clamp(wp.exp(spring_Y[tid]),</p>
+        <p class="code">                 low=spring_Y_min, high=spring_Y_max)</p>
+        <p class="code">        * (dis_len / rest - 1.0) * d)</p>
+        <p class="code">    v_rel = wp.dot(v2 - v1, d)</p>
+        <p class="code">    dashpot_forces = dashpot_damping * v_rel * d</p>
+        <p class="code">    overall_force = spring_force + dashpot_forces</p>
+        <p class="code">    wp.atomic_add(f, idx1, overall_force)</p>
+        <p class="code">    wp.atomic_sub(f, idx2, overall_force)</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Note the atomics</b> : many springs add into the same particle in parallel — <span class="red">the summation order is not fixed</span> (we return to this at the end).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 06 -->
+<section class="slide" data-title="Stiffness Is Stored as a Logarithm">
+  <p class="lead">One stiffness per spring, optimised in log space and clamped to a range</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:560px">
+        <p class="sub-h">Parameterisation</p>
+        <div class="eqbox"><div class="eq sm">\[k_s=\mathrm{clip}\big(e^{Y_s},\ Y_{\min},\ Y_{\max}\big)\]</div><div class="eq sm">\[Y_{\min}=0,\qquad Y_{\max}=10^5\]</div></div>
+        <p class="def"><b>Why log</b> : \(k&gt;0\) for free, and a gradient step changes \(k\) by a <i>ratio</i>, not an amount. Initial \(k=3\times10^4\).</p>
+        <p class="def"><b>Trap</b> : <span class="dim">case.spring_Y</span> is linear, <span class="dim">sim.wp_spring_Y</span> is its log — exponentiate the wrong one and every spring sits at the \(10^5\) clamp.</p>
+        <p class="def"><b>float32</b> : \(\lVert\mathbf x\rVert/L_0-1\) cancels near 1 — <span class="red">2.3 %</span> force error vs float64.</p>
+      </div>
+      <div>
+        <p class="sub-h">Fitted stiffness, rope_0001</p>
+        <table class="t sm">
+          <tr><th style="width:170px">Quantile</th><th>\(k\)</th></tr>
+          <tr><td>min</td><td>11.5</td></tr>
+          <tr><td>p10</td><td>1,821</td></tr>
+          <tr><td>median</td><td>43,785</td></tr>
+          <tr><td>p90</td><td>100,797</td></tr>
+          <tr><td>max</td><td>102,244</td></tr>
+        </table>
+        <p class="cap">p10–p90 spread <b>55×</b> here vs 1.05× in PhysTwin's single_push_rope — many springs ride the upper clamp.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 07 -->
+<section class="slide" data-title="Gravity, Drag and Semi-Implicit Euler">
+  <p class="lead">Velocity first from forces, then position from the new (contact-corrected) velocity</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:520px">
+        <p class="sub-h">1. Velocity from force, then drag</p>
+        <div class="eqbox"><div class="eq sm">\[\mathbf v^{+}=\Big(\mathbf v+\frac{\mathbf f+m\mathbf g}{m}\Delta t\Big)\,e^{-c_{\text{drag}}\Delta t}\]</div></div>
+        <p class="def">\(c_{\text{drag}}=3\) s\(^{-1}\) : exponential decay, never overshoots zero.</p>
+        <p class="sub-h">2. Contacts modify \(\mathbf v^{+}\)</p>
+        <p class="sub-h">3. Position (symplectic Euler)</p>
+        <div class="eq sm">\[\mathbf x^{+}=\mathbf x+\mathbf v^{+}\Delta t\]</div>
+        <div class="eq sm">\[n_{\text{sub}}=\mathrm{round}\Big(\frac{1/30}{5\times10^{-5}}\Big)=667\]</div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">spring_mass_warp.py : update_vel_from_force</p>
+        <p class="code">tid = wp.tid()                     <span class="cm"># one thread per particle</span></p>
+        <p class="code">v0 = v[tid]</p>
+        <p class="code">f0 = f[tid]</p>
+        <p class="code">m0 = masses[tid]</p>
+        <p class="code"> </p>
+        <p class="code">drag_damping_factor = wp.exp(-dt * drag_damping)</p>
+        <p class="code">all_force = f0 + m0 * wp.vec3(0.0, 0.0, -9.8) \</p>
+        <p class="code">                 * reverse_factor   <span class="cm"># PhysTwin: z down</span></p>
+        <p class="code">a = all_force / m0</p>
+        <p class="code">v1 = v0 + a * dt</p>
+        <p class="code">v2 = v1 * drag_damping_factor</p>
+        <p class="code">v_new[tid] = v2</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Upstream quirk</b> : with a mesh present, mesh_collision already writes \(\mathbf x+\mathbf v\Delta t\) and the ground kernel advances again — <span class="red">free fall measured at 2.002× analytic</span>. The released parameters were fitted with it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 08 -->
+<section class="slide" data-title="Why 667 Substeps: Explicit Stability">
+  <p class="lead">An explicit integrator must resolve the fastest spring — the stiffest, shortest one</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:520px">
+        <p class="sub-h">One spring, one mass: \(\omega=\sqrt{k_{\text{eff}}/m}\)</p>
+        <div class="eq sm">\[k_{\text{eff}}=\frac{k}{L_0}\quad(\text{force per metre})\]</div>
+        <p class="sub-h">Symplectic Euler is stable for \(\omega\Delta t&lt;2\)</p>
+        <div class="eqbox"><div class="eq sm">\[\Delta t&lt;2\sqrt{\frac{m\,L_0}{k}}=126.7\ \mu\text{s}\]</div></div>
+        <p class="def">with \(k_{\max}=10^5\), shortest \(L_0=0.40\) mm. The dashpot limit \(2m/c=20\) ms is far looser.</p>
+        <p class="def"><b>Released</b> \(\Delta t=50\ \mu\)s sits <span class="red">within 1.7×</span> of the spring limit.</p>
+      </div>
+      <div>
+        <p class="sub-h">Measured on the rope (projects 13, 21)</p>
+        <table class="t sm">
+          <tr><th style="width:130px">Substeps</th><th style="width:120px">\(\Delta t\) (µs)</th><th>Result</th></tr>
+          <tr><td>667</td><td>50</td><td>reference</td></tr>
+          <tr><td>500</td><td>67</td><td>stable, 13.3 mm rms · 1.21×</td></tr>
+          <tr><td>444</td><td>75</td><td>stable, 8.3 mm drift · 1.49×</td></tr>
+          <tr><td>400</td><td>83</td><td>stable, 18.2 mm</td></tr>
+          <tr><td>334</td><td>100</td><td class="red">diverges (NaN)</td></tr>
+        </table>
+        <p class="cap">Rerun spread of the reference itself is 16.6 mm, so 500 substeps is “free”.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 09 -->
+<section class="slide" data-title="PhysTwin Control: Points Welded by Springs">
+  <p class="lead">Tracked hand points are kinematic; springs tie them to nearby object particles</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:540px">
+        <p class="sub-h">Hand points</p>
+        <p class="def">Grounded-SAM2 hand masks + CoTracker → lifted to 3D → farthest-point sampled.</p>
+        <p class="sub-h">Attachment (frame 0, never changes)</p>
+        <div class="eq sm">\[\lVert\mathbf c_a-\mathbf p_j\rVert&lt;0.04\ \text{m},\ \le 50\ \text{per point}\]</div>
+        <p class="sub-h">Inside a frame: linear interpolation</p>
+        <div class="eqbox"><div class="eq sm">\[\mathbf c(s)=\mathbf c_{\text{prev}}+(\mathbf c_{\text{target}}-\mathbf c_{\text{prev}})\,\frac{s+1}{n_{\text{sub}}}\]</div></div>
+      </div>
+      <div>
+        <p class="sub-h">What this boundary condition means</p>
+        <ul class="lec">
+          <li>A <b>soft Dirichlet</b> condition: prescribed motion through a compliant spring</li>
+          <li>Pulls as hard as it pushes</li>
+          <li>Never releases, never slips</li>
+          <li>Sparse: in single_push_rope only <b>2 of 30</b> hand points are within 40 mm</li>
+        </ul>
+        <p class="cap">Code note: <span class="dim">wp_control_v</span> is never written, so the dashpot on control springs sees a control velocity of 0.</p>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Good for fitting a video</b>, wrong for robot grasping: <span class="red">a policy could “lift” the rope without ever squeezing it.</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 10 -->
+<section class="slide" data-title="real2sim-eval: Gripper as a Moving Mesh">
+  <p class="lead">Finger meshes and static scenery are one triangle mesh with a BVH, refit every substep</p>
+  <div class="content">
+    <div class="row" style="margin-top:4px">
+      <div class="blk t-purple" style="width:226px;height:104px"><span class="nm">EEF pose</span><span class="en">per frame</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:226px;height:104px"><span class="nm">Interpolate</span><span class="en">667 finger poses</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-blue" style="width:226px;height:104px"><span class="nm">One wp.Mesh</span><span class="en">fingers + static</span></div>
+      <div class="arw" style="width:28px;margin-right:18px"></div>
+      <div class="blk t-green" style="width:226px;height:104px"><span class="nm">BVH refit</span><span class="en">every substep</span></div>
+    </div>
+    <div class="two" style="margin-top:22px">
+      <div style="flex:none;width:540px">
+        <p class="sub-h">Rigid velocity of a finger point</p>
+        <div class="eqbox"><div class="eq sm">\[\mathbf V(\mathbf x)=\mathbf V_{\text{finger}}+\boldsymbol\omega\times(\mathbf x-\mathbf c_{\text{eef}})\]</div></div>
+        <p class="def">xArm fingers: 88 triangles, 48 vertices. <span class="dim">mesh_map[face]</span> = 0 / 1 for the fingers, &lt; 0 for static meshes.</p>
+      </div>
+      <div>
+        <p class="sub-h">Grasp is a force latch, not a weld</p>
+        <ul class="lec">
+          <li>Read normal “force” on fixed finger faces</li>
+          <li><b>Latch</b> when both fingers exceed a threshold (3×10⁴; 4,386 after our recalibration)</li>
+          <li><b>Release</b> when both drop below a low threshold</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 11 -->
+<section class="slide" data-title="One Contact Law: Restitution and Coulomb">
+  <p class="lead">Ground, self- and mesh contact all edit the velocity — no penalty springs</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:560px">
+        <p class="sub-h">Split relative velocity along the normal \(\mathbf n\)</p>
+        <div class="eq sm">\[\mathbf v_n=(\mathbf v\cdot\mathbf n)\,\mathbf n,\qquad \mathbf v_t=\mathbf v-\mathbf v_n\]</div>
+        <p class="sub-h">Restitution \(e\in[0,1]\)</p>
+        <div class="eq sm">\[\mathbf v_n'=-e\,\mathbf v_n\quad\Rightarrow\quad \lvert\Delta\mathbf v_n\rvert=(1+e)\lvert\mathbf v_n\rvert\]</div>
+        <p class="sub-h">Coulomb: \(\lvert\Delta\mathbf v_t\rvert\le\mu\,\lvert\Delta\mathbf v_n\rvert\)</p>
+        <div class="eqbox"><div class="eq sm">\[\mathbf v_t'=a\,\mathbf v_t,\qquad a=\max\Big(0,\ 1-\mu(1+e)\frac{\lvert\mathbf v_n\rvert}{\lvert\mathbf v_t\rvert}\Big)\]</div></div>
+      </div>
+      <div>
+        <p class="sub-h">Reading the scale factor \(a\)</p>
+        <table class="t sm">
+          <tr><th style="width:170px">Case</th><th>Meaning</th></tr>
+          <tr><td>\(a=0\)</td><td><b>stick</b>: friction impulse can stop all sliding</td></tr>
+          <tr><td>\(0&lt;a&lt;1\)</td><td><b>slip</b>: slide slowed by exactly \(\mu\cdot\) normal impulse</td></tr>
+          <tr><td>\(a\to1\)</td><td>grazing, \(\lvert\mathbf v_n\rvert\ll\lvert\mathbf v_t\rvert\)</td></tr>
+        </table>
+        <p class="sub-h" style="margin-top:20px">Clamps in the kernels</p>
+        <div class="eq sm">\[e\in[0,1],\qquad \mu\in[0,2]\]</div>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Same idea as the PushT impulse model</b> — but applied per particle, per substep, with unit mass and no rotation.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 12 -->
+<section class="slide" data-title="Ground Contact with Time of Impact">
+  <p class="lead">If the next step would cross \(z=0\) while moving down, apply the law and split the step</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:500px">
+        <p class="sub-h">Trigger</p>
+        <div class="eq sm">\[z+v_z\Delta t&lt;0\ \ \text{and}\ \ v_z&lt;-10^{-4}\]</div>
+        <p class="sub-h">Time of impact, then two half-moves</p>
+        <div class="eqbox"><div class="eq sm">\[t_c=-\frac{z}{v_z},\qquad \mathbf x^{+}=\mathbf x+\mathbf v\,t_c+\mathbf v'(\Delta t-t_c)\]</div></div>
+        <p class="sub-h">Resting particle, \(e=0\)</p>
+        <div class="eq sm">\[\lvert\mathbf v_t'\rvert=\lvert\mathbf v_t\rvert-\mu g\Delta t\]</div>
+        <p class="def">Gravity re-supplies \(g\Delta t\) of normal speed each substep → constant deceleration \(\mu g\) — textbook sliding friction.</p>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">spring_mass_warp.py : integrate_ground_collision</p>
+        <p class="code">normal = wp.vec3(0.0, 0.0, 1.0) * reverse_factor</p>
+        <p class="code">next_x_z = (x_z + v_z * dt) * reverse_factor</p>
+        <p class="code">if next_x_z &lt; 0.0 and v_z * reverse_factor &lt; -1e-4:</p>
+        <p class="code">    v_normal = wp.dot(v0, normal) * normal</p>
+        <p class="code">    v_tao = v0 - v_normal</p>
+        <p class="code">    v_normal_new = -clamp_collide_elas * v_normal</p>
+        <p class="code">    a = wp.max(0.0, 1.0 - clamp_collide_fric</p>
+        <p class="code">        * (1.0 + clamp_collide_elas)</p>
+        <p class="code">        * v_normal_length / v_tao_length)</p>
+        <p class="code">    v1 = v_normal_new + a * v_tao</p>
+        <p class="code">    toi = -(x_z - ground_height) / v_z</p>
+        <p class="code">else:</p>
+        <p class="code">    v1 = v0;  toi = 0.0</p>
+        <p class="code">x_new[tid] = x0 + v0 * toi + v1 * (dt - toi)</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 13 -->
+<section class="slide" data-title="Self-Collision: Hash Grid, Then Impulses">
+  <p class="lead">Particles of different parts that approach closer than 5 mm exchange an impulse</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:560px">
+        <p class="sub-h">Broad phase (once per frame)</p>
+        <p class="def">wp.HashGrid, cell \(5d_c\); keep pairs with different masks and \(\lVert\mathbf x_j-\mathbf x_i\rVert&lt;d_c\) (≤ 500 per particle). Pairs already close at frame 0 are excluded.</p>
+        <p class="sub-h">Narrow phase: approaching pairs only</p>
+        <div class="eq sm">\[(\mathbf x_j-\mathbf x_i)\cdot(\mathbf v_j-\mathbf v_i)&lt;-10^{-4}\]</div>
+        <div class="eqbox"><div class="eq sm">\[\mathbf J=\frac{-(1+e_s)\,\mathbf v^{\text{rel}}_n+(a-1)\,\mathbf v^{\text{rel}}_t}{1/m_i+1/m_j}\]</div></div>
+        <div class="eq sm">\[\mathbf v_i'=\mathbf v_i-\frac{1}{m_i}\,\overline{\mathbf J}\quad(\text{mean over contacts})\]</div>
+      </div>
+      <div>
+        <p class="sub-h">Parameters</p>
+        <table class="t sm">
+          <tr><th style="width:190px">&nbsp;</th><th>Value</th></tr>
+          <tr><td>\(d_c\)</td><td>0.005 m (PhysTwin 0.02)</td></tr>
+          <tr><td>\(e_s,\ \mu_s\)</td><td>clamped to [0,1], [0,2]</td></tr>
+          <tr><td>averaging</td><td>Jacobi-style mean</td></tr>
+        </table>
+        <p class="sub-h" style="margin-top:20px">What we found</p>
+        <p class="def">In our project-13 bridge, <span class="dim">update_collision_graph()</span> was never called: <span class="red">the kernel ran 667×/frame and looped zero times</span>. Upstream's driver does call it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 14 -->
+<section class="slide" data-title="Mesh Contact: Query, Respond, Project">
+  <p class="lead">Every particle asks the BVH: “will I be inside a finger or the table next step?”</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:520px">
+        <p class="sub-h">1. Predict and query (signed distance)</p>
+        <div class="eq sm">\[\hat{\mathbf x}=\mathbf x+\mathbf v\Delta t,\quad \text{err}=\mathrm{sign}\cdot\lVert\hat{\mathbf x}-\mathbf p\rVert-\delta\]</div>
+        <p class="def">inside/outside by winding number; margin \(\delta\) = 5 mm (finger), 1 mm (static).</p>
+        <p class="sub-h">2. If err &lt; 0: law in the finger's frame</p>
+        <div class="eqbox"><div class="eq sm">\[\mathbf v^{\text{rel}}=\mathbf v-\mathbf V(\mathbf x),\quad \mathbf v'=\mathcal C_{e,\mu}(\mathbf v^{\text{rel}})+\mathbf V(\mathbf x)\]</div></div>
+        <p class="def">Fingers: \(e=0,\ \mu=1.0\). Static: ground values.</p>
+        <p class="sub-h">3. Project out, read force</p>
+        <div class="eq sm">\[\hat{\mathbf x}\leftarrow\hat{\mathbf x}-\mathbf n\,\text{err},\qquad F_{\text{face}}\mathrel{+}=\Delta v_n/\Delta t\]</div>
+      </div>
+      <div class="codebox">
+        <p class="cap code-file">spring_mass_warp.py : mesh_collision (condensed)</p>
+        <p class="code">next_x = x0 + v0 * dt</p>
+        <p class="code">query = wp.mesh_query_point_sign_winding_number(</p>
+        <p class="code">    mesh, next_x, max_dist=0.02,</p>
+        <p class="code">    accuracy=3.0, threshold=0.6)</p>
+        <p class="code">p = wp.mesh_eval_position(mesh, query.face, ...)</p>
+        <p class="code">err = wp.length(next_x - p) * query.sign - margin</p>
+        <p class="code">if err &lt; 0.0:</p>
+        <p class="code">    normal = wp.normalize(next_x - p) * query.sign</p>
+        <p class="code">    real_dynamic_velocity = dynamic_velocity[k] \</p>
+        <p class="code">        + wp.cross(dynamic_omega[0], x0 - center)</p>
+        <p class="code">    v0 = v0 - real_dynamic_velocity</p>
+        <p class="code">    <span class="cm"># ... restitution + Coulomb scale a ...</span></p>
+        <p class="code">    next_v = v_normal_new + a * v_tao \</p>
+        <p class="code">             + real_dynamic_velocity</p>
+        <p class="code">    <span class="cm"># finger: re-predict, query again, push out</span></p>
+        <p class="code">    next_x = next_x - normal * err</p>
+        <p class="code">    wp.atomic_add(collision_forces, face,</p>
+        <p class="code">                  delta_v_normal / dt)</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 15 -->
+<section class="slide" data-title="Frictional Grasp: Lifted Without a Weld">
+  <p class="lead">Approach, close, lift: the rope rises only through the friction its own squeeze creates</p>
+  <div class="content">
+    <div class="tfig">
+      <img src="assets/figures/pt_grasp_rope.png" style="width:1180px" alt="Rope approached, grasped and lifted by the gripper; plot of rise and contact force">
+      <div class="src">Project 13: orange = finger meshes, blue = rope particles. Right: centre-of-mass rise (+62.9 mm), jaw opening (dashed), contact force (red).</div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Read the plot</b> : the force spikes when the jaw closes, then settles at the value that holds the rope's weight — <span class="red">grip force × \(\mu\) ≥ weight</span>, or it slips.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 16 -->
+<section class="slide" data-title="One Substep, Kernel by Kernel">
+  <p class="lead">Six GPU kernels and one BVH refit — repeated 667 times for each 33 ms video frame</p>
+  <div class="content">
+    <div class="row" style="margin-top:4px">
+      <div class="blk t-blue" style="width:150px;height:110px"><span class="nm">clear</span><span class="en">\(\mathbf f=0\)</span></div>
+      <div class="arw" style="width:14px;margin-right:18px"></div>
+      <div class="blk t-blue" style="width:150px;height:110px"><span class="nm">springs</span><span class="en">per spring</span></div>
+      <div class="arw" style="width:14px;margin-right:18px"></div>
+      <div class="blk t-blue" style="width:150px;height:110px"><span class="nm">velocity</span><span class="en">\(g\), drag</span></div>
+      <div class="arw" style="width:14px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:150px;height:110px"><span class="nm">self</span><span class="en">impulses</span></div>
+      <div class="arw" style="width:14px;margin-right:18px"></div>
+      <div class="blk t-purple" style="width:150px;height:110px"><span class="nm">refit</span><span class="en">finger BVH</span></div>
+      <div class="arw" style="width:14px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:150px;height:110px"><span class="nm">mesh</span><span class="en">query + law</span></div>
+      <div class="arw" style="width:14px;margin-right:18px"></div>
+      <div class="blk t-green" style="width:150px;height:110px"><span class="nm">ground</span><span class="en">TOI, \(\mathbf x^{+}\)</span></div>
+    </div>
+    <div class="two" style="margin-top:26px">
+      <div style="flex:none;width:560px">
+        <p class="sub-h">Per frame (30 fps)</p>
+        <ul class="lec">
+          <li>Once: hash grid, 667 interpolated finger poses</li>
+          <li>667 × (6 kernels + 1 refit) ≈ <b>4,000 launches</b></li>
+          <li>All kernels: one thread per spring or per particle</li>
+        </ul>
+      </div>
+      <div>
+        <p class="sub-h">Colour key</p>
+        <p class="def"><span style="color:var(--dia-blue-line)"><b>blue</b></span> spring–mass–damper · <span style="color:var(--dia-orange-line)"><b>orange</b></span> object contact · <span style="color:var(--dia-purple-line)"><b>purple</b></span> gripper geometry · <span style="color:var(--dia-green-line)"><b>green</b></span> ground + integration</p>
+        <p class="def">PhysTwin: same order, no mesh stages, plus <i>set_control_points</i> first.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 17 -->
+<section class="slide" data-title="Where the Time Goes (GPU, 4,004 Particles)">
+  <p class="lead">Doubling the particles costs nothing — the simulator is launch-latency bound</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:600px">
+        <table class="t sm">
+          <tr><th style="width:280px">Part (667 substeps)</th><th style="width:120px">ms/frame</th><th>Share</th></tr>
+          <tr><td>BVH refit (88 triangles)</td><td>29.5</td><td class="red">28.0 %</td></tr>
+          <tr><td>eval_springs (34,090)</td><td>22.0</td><td>20.8 %</td></tr>
+          <tr><td>mesh_collision</td><td>14.6</td><td>13.8 %</td></tr>
+          <tr><td>object_collision (inert)</td><td>10.7</td><td>10.2 %</td></tr>
+          <tr><td>ground + integrate</td><td>9.8</td><td>9.3 %</td></tr>
+          <tr><td>update_vel</td><td>8.5</td><td>8.1 %</td></tr>
+          <tr><td>set_mesh_points</td><td>6.5</td><td>6.1 %</td></tr>
+          <tr><td>clear_forces</td><td>4.0</td><td>3.7 %</td></tr>
+        </table>
+      </div>
+      <div>
+        <p class="sub-h">Fit over substep counts</p>
+        <div class="eqbox"><div class="eq sm">\[t_{\text{frame}}\approx 8.7\ \text{ms}+0.121\ \text{ms}\times n_{\text{sub}}\]</div></div>
+        <p class="def">2,002 vs 4,004 particles: <b>89.3 vs 88.8 ms</b>.</p>
+        <p class="def"><b>Grouped</b> : gripper contact path ≈ 46 %, springs ≈ 33 %, ground ≈ 9 %.</p>
+        <p class="def">Refitting a <span class="red">48-vertex</span> mesh costs more than 34k springs — it is pure launch overhead.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 18 -->
+<section class="slide" data-title="Lesson: A Broad Phase Did Not Help">
+  <p class="lead">Filtering particles with the gripper's box cut queries 656× — and the frame by 1.1 %</p>
+  <div class="content">
+    <div class="row" style="margin-top:4px">
+      <div class="blk t-blue" style="width:260px;height:110px"><span class="nm">100,100 particles</span><span class="en">× 667 substeps</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-orange" style="width:260px;height:110px"><span class="nm">AABB gate</span><span class="en">66.77 M → 101,796</span></div>
+      <div class="arw" style="width:40px;margin-right:18px"></div>
+      <div class="blk t-green" style="width:260px;height:110px"><span class="nm">Frame time</span><span class="en">257.1 → 254.2 ms</span></div>
+    </div>
+    <div class="two" style="margin-top:26px">
+      <div style="flex:none;width:560px">
+        <p class="sub-h">Cost per particle query (GPU)</p>
+        <table class="t sm">
+          <tr><th style="width:250px">Case</th><th>Time</th></tr>
+          <tr><td>BVH <b>miss</b></td><td>0.007 ns</td></tr>
+          <tr><td>AABB test</td><td>0.018 ns</td></tr>
+          <tr><td>BVH <b>hit</b></td><td>20 ns (2,933× a miss)</td></tr>
+        </table>
+      </div>
+      <div>
+        <p class="sub-h">Why</p>
+        <p class="def">The BVH's first box test <i>already is</i> a broad phase. Only 3.8 % of (particle, substep) pairs are real hits, and those are what cost time.</p>
+        <p class="def"><span class="red">Profile before you optimise</span> — the textbook fix attacked a cost that did not exist.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 19 -->
+<section class="slide" data-title="What Actually Made It Faster">
+  <p class="lead">Remove launches, atomics and refits: 1.7× at 4k particles, 1.9× at 100k</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:660px">
+        <table class="t sm">
+          <tr><th style="width:330px">Change</th><th style="width:150px">4,004</th><th>100,100</th></tr>
+          <tr><td>cache \(\mathrm{clip}(e^{Y})\)</td><td>+0.2 ms</td><td>−5.0 ms</td></tr>
+          <tr><td>per-particle spring gather, no atomics</td><td>+1.6 ms</td><td class="red">−57.6 ms</td></tr>
+          <tr><td>fuse mesh contact + ground</td><td>−2.0 ms</td><td>−5.1 ms</td></tr>
+          <tr><td>static finger BVH in local frame</td><td class="red">−11.8 ms</td><td>−11.6 ms</td></tr>
+          <tr><td>CUDA graph replay</td><td>−12.0 ms</td><td>−14.8 ms</td></tr>
+          <tr><td><b>total (with 500 substeps)</b></td><td><b>81.6 → 48.4</b></td><td><b>264.3 → 137.8</b></td></tr>
+        </table>
+      </div>
+      <div>
+        <p class="sub-h">Two key tricks</p>
+        <p class="def"><b>Gather</b> : each particle sums its own springs —</p>
+        <div class="eq sm">\[\mathbf f_i=\sum_{j}\big[k\,\varepsilon_{ij}+c\,(\mathbf v_j-\mathbf v_i)\cdot\mathbf u\big]\mathbf u\]</div>
+        <p class="def"><b>Local BVH</b> : move the particle, not the mesh —</p>
+        <div class="eq sm">\[\mathbf x_\ell=R^{\top}(\mathbf x_w-\mathbf t)\]</div>
+      </div>
+    </div>
+    <div class="abs" style="left:0;right:0;bottom:12px">
+      <p class="def" style="margin:0"><b>Result</b> : 3,335 launches → 1 per frame, 2 kernels per substep, every rms inside the 22.9 mm upstream self-spread.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 20 -->
+<section class="slide" data-title="CPU vs GPU: The Ranking Inverts">
+  <p class="lead">CPU: a spring solver with some contact — GPU: a contact solver with some springs</p>
+  <div class="content">
+    <div class="two">
+      <div style="flex:none;width:660px">
+        <table class="t sm">
+          <tr><th style="width:230px">Role (4,004 particles)</th><th style="width:150px">CPU ms</th><th style="width:150px">GPU ms</th><th>CPU/GPU</th></tr>
+          <tr><td>spring–mass–damper</td><td class="red">201.8 (60.5 %)</td><td>14.9 (15.4 %)</td><td>13.5×</td></tr>
+          <tr><td>gripper contact</td><td>103.1 (30.9 %)</td><td class="red">66.7 (68.9 %)</td><td>1.5×</td></tr>
+          <tr><td>integration</td><td>16.6 (5.0 %)</td><td>7.3 (7.5 %)</td><td>2.3×</td></tr>
+          <tr><td>ground</td><td>12.2 (3.7 %)</td><td>7.9 (8.2 %)</td><td>1.5×</td></tr>
+          <tr><td>BVH refit alone</td><td>0.5</td><td>19.1</td><td>0.03×</td></tr>
+        </table>
+        <p class="cap">Warp's CPU backend is a serial loop, so it measures <i>work</i>; the GPU measures latency.</p>
+      </div>
+      <div>
+        <p class="sub-h">Same change, two verdicts</p>
+        <table class="t sm">
+          <tr><th style="width:170px">Change</th><th style="width:90px">CPU</th><th>GPU</th></tr>
+          <tr><td>cache exp</td><td>−16.2 %</td><td>−0.6 %</td></tr>
+          <tr><td>local BVH</td><td>+5.9 %</td><td>−16.5 %</td></tr>
+          <tr><td>broad phase</td><td>≈ 0</td><td>≈ 0</td></tr>
+        </table>
+        <p class="def" style="margin-top:14px">GPU speed-up grows with size: 3.2× at 2k → <b>24×</b> at 100k particles.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 21 -->
+<section class="slide" data-title="Reduced Models: Fewer Degrees of Freedom">
+  <p class="lead">Project the physics onto a few coarse modes; treat contact as a constraint, not a force</p>
+  <div class="content">
+    <div class="two">
+      <div>
+        <p class="sub-h">18 — latent operator, not learned</p>
+        <div class="eqbox"><div class="eq sm">\[K_r=P^{\top}KP,\qquad M_r\ddot{\mathbf z}=P^{\top}\mathbf f-K_r\mathbf z-C_r\dot{\mathbf z}\]</div></div>
+        <p class="def">6,006 DOF → 96. \(K_r\) is the exact Schur complement (8e-14). A whole frame = one matvec with \(\Phi^{667}\).</p>
+        <p class="def"><b>5.10×</b> end-to-end at 2.32 mm (0.23 %) error.</p>
+      </div>
+      <div>
+        <p class="sub-h">19 — reduced contact constraint</p>
+        <div class="eqbox"><div class="eq sm">\[J_r=JP,\quad p_n\ge0,\quad \lVert\mathbf p_t\rVert\le\mu\,p_n\]</div></div>
+        <p class="def">Coulomb <i>disk</i>, solved by PGS; 4 implicit microsteps replace 667 substeps.</p>
+        <table class="t sm">
+          <tr><th style="width:200px">Scene</th><th>Speed-up</th></tr>
+          <tr><td>resting / sliding</td><td>3.78× / 2.55×</td></tr>
+          <tr><td>3 cm drop</td><td>2.89×</td></tr>
+          <tr><td>gripper approach</td><td class="red">1.18×, 90 mm worst — failure</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 22 -->
+<section class="slide" data-title="Contact Makes the Simulator Non-Repeatable">
+  <p class="lead">Identical inputs, different rope: atomic float sums reorder, and contact amplifies it</p>
+  <div class="content">
+    <div class="tfig">
+      <img src="assets/figures/pt_divergence.png" style="width:1100px" alt="Two identical runs overlaid: press stays together, lift-drop separates by 66 mm">
+      <div class="src">Project 15: two identical runs overlaid (red = second run). Left: quasi-static press, 0.38 mm. Right: lift and drop, 66 mm.</div>
+    </div>
+    <div class="two" style="margin-top:20px">
+      <div>
+        <p class="def"><b>Why</b> : \((a+b)+c\ne a+(b+c)\) in float32. A tiny difference decides whether a particle is inside the 5 mm margin — <span class="red">a contact appears or not</span>.</p>
+      </div>
+      <div>
+        <p class="def"><b>8 replays of one nominal (RL, 17)</b> : 27.2, 30.5, 30.3, 27.7, 27.9, <span class="red">50.6</span>, 30.2, 29.3 mm. The per-particle gather is bit-reproducible.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 23 -->
+<section class="slide" data-title="Contact Churn Limits What We Can Identify">
+  <p class="lead">Probes designed to excite one parameter also create the most noise</p>
+  <div class="content">
+    <div class="two">
+      <div class="tfig" style="flex:none;width:640px">
+        <img src="assets/figures/pt_protocols.png" style="width:640px" alt="Nine contact probe protocols on the rope twin">
+        <div class="src">Project 15: nine textbook probes, each with contact %, repeat noise, SNR</div>
+      </div>
+      <div>
+        <table class="t sm">
+          <tr><th style="width:200px">Probe</th><th>Repeat noise</th></tr>
+          <tr><td>quasi-static press</td><td>1.2 mm</td></tr>
+          <tr><td>ring-down</td><td>3.7 mm</td></tr>
+          <tr><td>lateral drag</td><td>7.1 mm</td></tr>
+          <tr><td>lift-drop</td><td class="red">44–99 mm</td></tr>
+        </table>
+        <p class="def" style="margin-top:14px">Noise tracks <b>churn</b> (contacts forming and breaking), not contact time.</p>
+        <p class="def">Fisher design predicted 1.19×; actual fits: <span class="red">random wins 5/5</span> (p ≈ 0.004).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== 24 -->
+<section class="slide" data-title="Summary">
+  <p class="lead">A rope twin is springs + one velocity-level contact law, run 667 times per frame</p>
+  <div class="content">
+    <ul class="lec">
+      <li><b>Simulation model</b> : log-stiffness springs with axial dashpots, exponential drag, symplectic Euler at 50 µs
+        <ul><li>\(\Delta t\) is set by the stiffest, shortest spring — 1.7× below the limit</li></ul></li>
+      <li><b>Boundary condition</b> : PhysTwin welds the hand with springs; real2sim-eval uses a moving mesh with friction
+        <ul><li>only the second can slip, drop, and be a fair test of a grasp</li></ul></li>
+      <li><b>Contact model</b> : \(\mathbf v_n'=-e\mathbf v_n,\ \mathbf v_t'=a\mathbf v_t\) for ground, self and mesh
+        <ul><li>Coulomb friction as a velocity scale factor, plus position projection</li></ul></li>
+      <li><b>Cost</b> : on a GPU, launches and refits dominate — not arithmetic, not the broad phase</li>
+      <li><b>Consequence</b> : <span class="red">contact turns float round-off into mm-scale divergence</span> — budget for it in RL and system ID</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====================================================================== 25 -->
+<section class="slide" data-title="Try It Yourself">
+  <p class="lead">Exercises with the simulator</p>
+  <div class="content">
+    <ul class="lec">
+      <li><b>Stability</b> : derive \(\Delta t_{\max}\) for a chain of 3 masses — when is it tighter than one spring?</li>
+      <li><b>Friction</b> : show that \(a=0\) exactly when the needed friction impulse is \(\le\mu(1+e)\lvert\mathbf v_n\rvert\)</li>
+      <li><b>Grasp</b> : with \(\mu=1\), what squeeze force holds a 50 g rope? Compare with the latch threshold</li>
+      <li><b>Weld vs friction</b> : replay one trajectory in both models — where do they disagree?</li>
+      <li><b>Determinism</b> : run the same frame 10 times with atomics, then with the gather kernel</li>
+      <li><b>Profiling</b> : predict the CPU and GPU ranking of each kernel before you measure it</li>
+    </ul>
+  </div>
+</section>
+
+</div></div>
+
+<div id="hud"><b id="hud-n">1</b> / <span id="hud-t">22</span></div>
+<div id="help">← → navigate · O overview · F fullscreen · Ctrl+P print (PDF)</div>
+
+<script>
+(function(){
+  var deck   = document.getElementById('deck');
+  var slides = Array.prototype.slice.call(deck.querySelectorAll('.slide'));
+  var idx = 0;
+
+  // ---- inject slide chrome (title bar · mark · footer · number) ------------
+  var CREDIT = 'Sookmyung Women’s Univ. Autonomous Mechanical Systems Lab';
+  slides.forEach(function(s, i){
+    if (s.classList.contains('cover')) return;
+    var bar = document.createElement('div'); bar.className = 'bar';
+    var h2  = document.createElement('h2');  h2.textContent = s.dataset.title || '';
+    var mk  = document.createElement('img'); mk.className = 'mark'; mk.alt = '';
+    mk.src  = 'assets/logo/smwu-logo-mark-mono.png';
+    s.insertBefore(mk, s.firstChild);
+    s.insertBefore(h2, s.firstChild);
+    s.insertBefore(bar, s.firstChild);
+    var f  = document.createElement('div'); f.className  = 'foot';
+    var nb = document.createElement('div'); nb.className = 'foot-num-band';
+    var cr = document.createElement('div'); cr.className = 'foot-credit'; cr.textContent = CREDIT;
+    var nu = document.createElement('div'); nu.className = 'foot-num';    nu.textContent = String(i + 1);
+    s.appendChild(f); s.appendChild(nb); s.appendChild(cr); s.appendChild(nu);
+  });
+  document.getElementById('hud-t').textContent = String(slides.length);
+
+  // ---- math -----------------------------------------------------------------
+  function renderMath(){
+    if (!window.renderMathInElement) return false;
+    renderMathInElement(deck, {
+      delimiters: [{left:'\\[', right:'\\]', display:true}, {left:'\\(', right:'\\)', display:false}],
+      throwOnError: false
+    });
+    document.body.setAttribute('data-math', 'done');
+    return true;
+  }
+  window.addEventListener('DOMContentLoaded', renderMath);
+
+  // ---- fit to viewport --------------------------------------------------------
+  function fit(){
+    if (document.body.classList.contains('overview')) { deck.style.transform = 'none'; return; }
+    var s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    deck.style.transform = 'scale(' + s + ')';
+  }
+  function show(n){
+    idx = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function(s, i){ s.classList.toggle('is-active', i === idx); });
+    document.getElementById('hud-n').textContent = String(idx + 1);
+    if (document.body.classList.contains('overview')) slides[idx].scrollIntoView({block: 'nearest'});
+    if (location.hash !== '#' + (idx + 1)) history.replaceState(null, '', '#' + (idx + 1));
+  }
+  function toggleOverview(){ document.body.classList.toggle('overview'); fit(); show(idx); }
+
+  document.addEventListener('keydown', function(e){
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    switch (e.key) {
+      case 'ArrowRight': case 'PageDown': case ' ': case 'Enter': show(idx + 1); e.preventDefault(); break;
+      case 'ArrowLeft': case 'PageUp': case 'Backspace': show(idx - 1); e.preventDefault(); break;
+      case 'Home': show(0); e.preventDefault(); break;
+      case 'End':  show(slides.length - 1); e.preventDefault(); break;
+      case 'o': case 'O': toggleOverview(); e.preventDefault(); break;
+      case 'f': case 'F':
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen();
+        e.preventDefault(); break;
+      case 'Escape':
+        if (document.body.classList.contains('overview')) { toggleOverview(); e.preventDefault(); }
+        break;
+    }
+  });
+  deck.addEventListener('click', function(e){
+    if (!document.body.classList.contains('overview')) return;
+    var s = e.target.closest('.slide');
+    if (s) { toggleOverview(); show(slides.indexOf(s)); }
+  });
+  window.addEventListener('resize', fit);
+  window.addEventListener('hashchange', function(){
+    var n = parseInt(location.hash.slice(1), 10);
+    if (!isNaN(n)) show(n - 1);
+  });
+
+  var start = parseInt(location.hash.slice(1), 10);
+  fit();
+  show(isNaN(start) ? 0 : start - 1);
+  setTimeout(function(){ document.getElementById('help').classList.add('faded'); }, 6000);
+
+  // ---- layout export for the PPTX build (?export) -----------------------------
+  if (/(\?|&)export\b/.test(location.search)) {
+    var ex = document.createElement('script');
+    ex.src = '../tools/export_layout.js';
+    document.body.appendChild(ex);
+  }
+
+  // ---- overflow audit (?audit) ------------------------------------------------
+  if (/(\?|&)audit\b/.test(location.search)) {
+    setTimeout(function(){
+      var rows = [];
+      slides.forEach(function(s, i){
+        var was = s.style.display;
+        s.style.display = 'block';
+        var c = s.querySelector('.content');
+        var over = c ? Math.round(c.scrollHeight - c.clientHeight) : 0;
+        // absolutely-positioned footers inside .content: check they clear the other content
+        var kids = c ? Array.prototype.slice.call(c.children) : [];
+        var absK = kids.filter(function(k){ return k.classList.contains('abs') && k.style.bottom; });
+        var flow = kids.filter(function(k){ return getComputedStyle(k).position !== 'absolute'; });
+        var clash = 0;
+        absK.forEach(function(a){
+          var at = a.getBoundingClientRect().top;
+          flow.forEach(function(k){ clash = Math.max(clash, Math.round(k.getBoundingClientRect().bottom - at)); });
+        });
+        s.style.display = was;
+        rows.push({n: i + 1, t: s.dataset.title || 'Cover', over: over, clash: clash});
+      });
+      var bad = rows.filter(function(r){ return r.over > 1 || r.clash > 0; });
+      var box = document.createElement('pre');
+      box.id = 'audit';
+      box.style.cssText = 'position:fixed;inset:0;z-index:99;margin:0;padding:24px;' +
+        'background:#fff;color:#111;font:13px/1.55 Consolas,monospace;overflow:auto';
+      box.textContent = 'OVERFLOW AUDIT  —  ' + bad.length + ' / ' + rows.length + ' slides flagged\n\n' +
+        rows.map(function(r){
+          return ((r.over > 1 || r.clash > 0) ? '  BAD  ' : '   ok  ') + String(r.n).padStart(3) +
+                 '  over ' + String(r.over).padStart(4) + '  clash ' + String(r.clash).padStart(4) + '   ' + r.t;
+        }).join('\n');
+      document.body.appendChild(box);
+    }, 2500);
+  }
+})();
+</script>
+</body>
+</html>

@@ -28,7 +28,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LECTURE = os.path.dirname(HERE)
 SLIDES_DIR = os.path.join(LECTURE, "slides")
 TEMPLATE = r"C:\Users\Sim\Dropbox\[Courses]\[고급딥러닝시스템과응용]\08_Claude\05_design\ADL_2026_Lec01_AMSL.pptx"
-OUT = os.path.join(SLIDES_DIR, "ADL_2026_Dynamics.pptx")
+if not os.path.exists(TEMPLATE):   # off the Windows machine: the built Dynamics deck carries the same master/theme
+    TEMPLATE = os.path.join(SLIDES_DIR, "ADL_2026_Dynamics.pptx")
+TEMPLATE = os.environ.get("PPTX_TEMPLATE", TEMPLATE)
+OUT = os.environ.get("PPTX_OUT", os.path.join(SLIDES_DIR, "ADL_2026_Dynamics.pptx"))
+BUILD = os.environ.get("BUILD_DIR", os.path.join(HERE, "build"))
 CREDIT = "Sookmyung Women’s Univ. Autonomous Mechanical Systems Lab"
 
 NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -78,14 +82,12 @@ def E(px):
 # ---------------------------------------------------------------- template
 def load_template():
     prs = Presentation(TEMPLATE)
-    cover_mark = prs.slides[0].shapes[2].image.blob
-    slide_mark = prs.slides[1].shapes[2].image.blob
     # drop the template's own slides; keep master/layout/theme
     sldIdLst = prs.slides._sldIdLst
     for sldId in list(sldIdLst):
         prs.part.drop_rel(sldId.rId)
         sldIdLst.remove(sldId)
-    return prs, cover_mark, slide_mark
+    return prs
 
 
 # ---------------------------------------------------------------- shapes
@@ -335,12 +337,12 @@ def chrome_cover(slide, mark):
 
 # ---------------------------------------------------------------- build
 def main():
-    layout = json.load(open(os.path.join(HERE, "build", "layout.json"), encoding="utf-8"))
+    layout = json.load(open(os.path.join(BUILD, "layout.json"), encoding="utf-8"))
     texs = [r["m"] for s in layout["slides"] for it in s["items"] if it["kind"] == "text"
             for r in it["runs"] if "m" in r]
     omml = convert_norm(texs)
 
-    prs, _, _ = load_template()
+    prs = load_template()
     logo = os.path.join(SLIDES_DIR, "assets", "logo")
     cover_mark = os.path.join(logo, "smwu-mark-white.png")
     slide_mark = os.path.join(logo, "smwu-mark-blue.png")

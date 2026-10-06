@@ -9,6 +9,7 @@ Cache: build/omml_cache.json
 """
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import zipfile
@@ -37,7 +38,7 @@ def convert(texs):
             out = os.path.join(tmp, "eq.docx")
             body = "\n\n".join("\(" + t + "\)" for t in todo)
             open(src, "w", encoding="utf-8").write(body + "\n")
-            subprocess.run(["pandoc", "-f", "latex", src, "-o", out], check=True)
+            subprocess.run([os.environ.get("PANDOC") or shutil.which("pandoc") or "pandoc", "-f", "latex", src, "-o", out], check=True)
             xml = zipfile.ZipFile(out).read("word/document.xml")
         root = etree.fromstring(xml)
         paras = [p for p in root.iter(f"{{{W}}}p") if p.find(f".//{{{M}}}oMath") is not None]
